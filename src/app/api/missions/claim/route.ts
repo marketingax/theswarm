@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
     const missionData = mission as any;
 
     // Can't claim your own mission
-    if (missionData.requester_agent_id === agent_id) {
+    if (missionData.creator_id === agent_id) {
       return NextResponse.json({ error: 'Cannot claim your own mission' }, { status: 400 });
     }
 
