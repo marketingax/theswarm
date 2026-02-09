@@ -125,14 +125,10 @@ export async function POST(request: NextRequest) {
       .insert({
         creator_id: agent_id,
         type: mission_type,
-        mission_type,
+        title: target_name || 'Mission',
+        description: instructions || '',
         target_url,
-        target_name,
-        target_count,
-        target_hours,
-        xp_cost,
         xp_reward,
-        instructions,
         status: 'active',
       })
       .select()
