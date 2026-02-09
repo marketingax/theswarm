@@ -129,6 +129,7 @@ export async function POST(request: NextRequest) {
         description: instructions || '',
         target_url,
         xp_reward,
+        stake_required: 0,
         status: 'active',
       })
       .select()
