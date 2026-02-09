@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { getSecurityNotice } from '@/lib/security';
 
 // Lazy initialization for Vercel build
 let supabase: SupabaseClient | null = null;
@@ -14,11 +13,11 @@ function getSupabase(): SupabaseClient {
   return supabase;
 }
 
-// POST /api/missions/claim - Claim a mission
+// POST /api/missions/flag - Flag a suspicious mission
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { mission_id, agent_id, wallet_address } = body;
+    const { mission_id, agent_id, wallet_address, reason } = body;
 
     if (!mission_id || !agent_id || !wallet_address) {
       return NextResponse.json(
@@ -29,10 +28,10 @@ export async function POST(request: NextRequest) {
 
     const db = getSupabase();
 
-    // Verify agent
+    // Verify agent exists and owns wallet
     const { data: agent, error: agentError } = await db
       .from('agents')
-      .select('id, xp, trust_tier, youtube_verified_at')
+      .select('id, name')
       .eq('id', agent_id)
       .eq('wallet_address', wallet_address)
       .single();
@@ -41,10 +40,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Agent not found or wallet mismatch' }, { status: 403 });
     }
 
-    // Get mission
+    // Check mission exists
     const { data: mission, error: missionError } = await db
       .from('missions')
-      .select('*')
+      .select('id, creator_id, flag_count, status')
       .eq('id', mission_id)
       .single();
 
@@ -55,62 +54,62 @@ export async function POST(request: NextRequest) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const missionData = mission as any;
 
-    // Can't claim your own mission
+    // Can't flag your own mission
     if (missionData.creator_id === agent_id) {
-      return NextResponse.json({ error: 'Cannot claim your own mission' }, { status: 400 });
+      return NextResponse.json({ error: 'Cannot flag your own mission' }, { status: 400 });
     }
 
-    // Check mission is active
-    if (missionData.status !== 'active') {
-      return NextResponse.json({ error: 'Mission is not active' }, { status: 400 });
-    }
-
-    // Check mission isn't full
-    if (missionData.current_count >= missionData.target_count) {
-      return NextResponse.json({ error: 'Mission is already complete' }, { status: 400 });
-    }
-
-    // Check agent hasn't already claimed
-    const { data: existingClaim } = await db
-      .from('claims')
-      .select('id, status')
+    // Check if already flagged by this agent
+    const { data: existingFlag } = await db
+      .from('mission_flags')
+      .select('id')
       .eq('mission_id', mission_id)
       .eq('agent_id', agent_id)
       .single();
 
-    if (existingClaim) {
-      return NextResponse.json(
-        { error: 'You have already claimed this mission', claim: existingClaim },
-        { status: 400 }
-      );
+    if (existingFlag) {
+      return NextResponse.json({ error: 'You already flagged this mission' }, { status: 400 });
     }
 
-    // Create claim
-    const { data: claim, error: claimError } = await db
-      .from('claims')
+    // Record the flag
+    await db
+      .from('mission_flags')
       .insert({
         mission_id,
         agent_id,
-        status: 'pending',
-        xp_escrow: missionData.xp_reward,
-      })
-      .select()
-      .single();
+        reason: reason || 'Suspicious content',
+      });
 
-    if (claimError) {
-      console.error('Failed to create claim:', claimError);
-      return NextResponse.json({ error: 'Failed to claim mission' }, { status: 500 });
+    // Increment flag count on mission
+    const newFlagCount = (missionData.flag_count || 0) + 1;
+    
+    // Auto-pause mission if 3+ flags
+    const updates: Record<string, unknown> = { 
+      flag_count: newFlagCount,
+      flagged: true,
+    };
+    
+    if (newFlagCount >= 3 && missionData.status === 'active') {
+      updates.status = 'paused';
+      updates.pause_reason = 'Auto-paused: Multiple community flags';
     }
+
+    await db
+      .from('missions')
+      .update(updates)
+      .eq('id', mission_id);
 
     return NextResponse.json({
       success: true,
-      claim,
-      message: 'Mission claimed! Complete the task and submit proof.',
-      security_notice: getSecurityNotice(),
+      message: newFlagCount >= 3 
+        ? 'Mission flagged and paused for review' 
+        : 'Mission flagged for review',
+      flag_count: newFlagCount,
+      paused: newFlagCount >= 3,
     });
 
   } catch (err) {
-    console.error('Claim error:', err);
+    console.error('Flag mission error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
