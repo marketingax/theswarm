@@ -123,8 +123,8 @@ export async function POST(request: NextRequest) {
     const { data: mission, error: missionError } = await db
       .from('missions')
       .insert({
-        requester_agent_id: agent_id,
-        requester_type: 'agent',
+        creator_id: agent_id,
+        type: mission_type,
         mission_type,
         target_url,
         target_name,
