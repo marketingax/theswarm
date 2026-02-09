@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { checkProofContent, getSecurityNotice } from '@/lib/security';
 
 // Lazy initialization for Vercel build
 let supabase: SupabaseClient | null = null;
@@ -36,6 +37,13 @@ export async function POST(request: NextRequest) {
         { error: 'claim_id, agent_id, and wallet_address required' },
         { status: 400 }
       );
+    }
+
+    // 🛡️ SECURITY: Check proof content for suspicious patterns
+    const proofCheck = checkProofContent(proof_url, proof_data);
+    if (proofCheck.flagged) {
+      console.warn('Proof flagged by security filter:', proofCheck.reasons);
+      // Don't block, but flag for manual review
     }
 
     const db = getSupabase();
@@ -98,7 +106,8 @@ export async function POST(request: NextRequest) {
 
     // Determine if this claim should be audited
     const auditRate = getAuditRate(agentData.trust_tier);
-    const shouldAudit = Math.random() * 100 < auditRate;
+    // 🛡️ SECURITY: Force audit if proof was flagged
+    const shouldAudit = proofCheck.flagged || Math.random() * 100 < auditRate;
 
     let auditResult = null;
 
@@ -108,15 +117,20 @@ export async function POST(request: NextRequest) {
         .from('audits')
         .insert({
           claim_id,
-          audit_type: 'random',
+          audit_type: proofCheck.flagged ? 'security_flag' : 'random',
           check_method: 'pending',
+          notes: proofCheck.flagged ? `Security flags: ${proofCheck.reasons.join(', ')}` : null,
         })
         .select()
         .single();
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const auditData = audit as any;
-      auditResult = { audited: true, audit_id: auditData?.id };
+      auditResult = { 
+        audited: true, 
+        audit_id: auditData?.id,
+        security_flagged: proofCheck.flagged,
+      };
     } else {
       // Auto-approve (no audit needed)
       await processApproval(db, claimData, missionData, agentData);

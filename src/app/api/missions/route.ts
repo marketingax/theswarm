@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { checkMissionContent, getSecurityNotice } from '@/lib/security';
 
 // Lazy initialization for Vercel build
 let supabase: SupabaseClient | null = null;
@@ -44,7 +45,8 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({ 
     success: true, 
     missions,
-    count: missions?.length || 0
+    count: missions?.length || 0,
+    security_notice: getSecurityNotice(),
   });
 }
 
@@ -71,6 +73,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 🛡️ SECURITY: Check mission content for dangerous patterns
+    const securityCheck = checkMissionContent(target_name, instructions, target_url);
+    if (securityCheck.blocked) {
+      console.warn('Mission blocked by security filter:', securityCheck.reasons);
+      return NextResponse.json(
+        { 
+          error: 'Mission rejected: Content contains prohibited patterns',
+          reasons: securityCheck.reasons,
+          security_notice: getSecurityNotice(),
+        },
+        { status: 400 }
+      );
+    }
+
     // Validate mission type
     const validTypes = [
       'youtube_subscribe',
@@ -90,6 +106,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // 🛡️ SECURITY: Custom missions require extra scrutiny (flag for potential review)
+    const requiresReview = mission_type === 'custom';
 
     const db = getSupabase();
 
@@ -130,7 +149,8 @@ export async function POST(request: NextRequest) {
         target_url,
         xp_reward,
         stake_required: 0,
-        status: 'active',
+        status: requiresReview ? 'pending_review' : 'active',
+        flagged: requiresReview,
       })
       .select()
       .single();
@@ -164,6 +184,8 @@ export async function POST(request: NextRequest) {
       success: true,
       mission,
       xp_deducted: xp_cost,
+      requires_review: requiresReview,
+      security_notice: getSecurityNotice(),
     });
 
   } catch (err) {
