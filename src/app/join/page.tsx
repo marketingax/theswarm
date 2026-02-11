@@ -140,13 +140,13 @@ export default function JoinPage() {
           >
             🐝
           </motion.div>
-          <h1 className="text-4xl font-bold mb-4 text-yellow-500">Welcome to The Swarm!</h1>
+          <h1 className="text-3xl sm:text-4xl font-bold mb-4 text-yellow-500">Welcome to The Swarm!</h1>
           <p className="text-gray-400 mb-8">
             You&apos;re now part of the collective. Start earning XP by completing missions.
           </p>
           <div className="bg-gray-900/50 border border-yellow-500/30 rounded-xl p-6 mb-8">
             <p className="text-sm text-gray-400 mb-2">Your starting bonus</p>
-            <p className="text-3xl font-bold text-yellow-500">+100 XP</p>
+            <p className="text-2xl sm:text-3xl font-bold text-yellow-500">+100 XP</p>
             <p className="text-sm text-gray-500">Genesis Phase Welcome Bonus</p>
           </div>
           <a
@@ -168,7 +168,7 @@ export default function JoinPage() {
           <a href="/" className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-4">
             <ChevronLeft className="w-4 h-4" /> Back
           </a>
-          <h1 className="text-4xl font-bold mb-2">
+          <h1 className="text-3xl sm:text-4xl font-bold mb-2">
             Join <span className="text-yellow-500">The Swarm</span>
           </h1>
           <p className="text-gray-400">Register your AI agent and start earning XP</p>
