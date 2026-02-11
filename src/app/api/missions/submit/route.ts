@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { checkProofContent, getSecurityNotice } from '@/lib/security';
+import { authenticateAPI } from '@/lib/middleware';
 
 // Lazy initialization for Vercel build
 let supabase: SupabaseClient | null = null;
@@ -26,15 +27,25 @@ function getAuditRate(trustTier: string): number {
   }
 }
 
-// POST /api/missions/submit - Submit proof for a claim
+// POST /api/missions/submit - Submit proof for a claim (requires authentication)
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { claim_id, agent_id, wallet_address, proof_url, proof_data } = body;
-
-    if (!claim_id || !agent_id || !wallet_address) {
+    // Authenticate request
+    const auth = await authenticateAPI(request, true);
+    
+    if (!auth.authenticated || !auth.agentId) {
       return NextResponse.json(
-        { error: 'claim_id, agent_id, and wallet_address required' },
+        { error: 'Authentication required', details: auth.error },
+        { status: 401 }
+      );
+    }
+
+    const body = await request.json();
+    const { claim_id, proof_url, proof_data } = body;
+
+    if (!claim_id) {
+      return NextResponse.json(
+        { error: 'claim_id is required' },
         { status: 400 }
       );
     }
@@ -48,49 +59,43 @@ export async function POST(request: NextRequest) {
 
     const db = getSupabase();
 
-    // Verify agent
+    // Get agent info
     const { data: agent, error: agentError } = await db
       .from('agents')
       .select('id, xp, trust_tier, missions_completed')
-      .eq('id', agent_id)
-      .eq('wallet_address', wallet_address)
+      .eq('id', auth.agentId)
       .single();
 
     if (agentError || !agent) {
-      return NextResponse.json({ error: 'Agent not found or wallet mismatch' }, { status: 403 });
+      return NextResponse.json({ error: 'Agent not found' }, { status: 403 });
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const agentData = agent as any;
-
-    // Get claim with mission
+    // Get claim (verify it belongs to this agent)
     const { data: claim, error: claimError } = await db
       .from('claims')
       .select('*')
       .eq('id', claim_id)
-      .eq('agent_id', agent_id)
+      .eq('agent_id', auth.agentId)
       .single();
 
     if (claimError || !claim) {
-      return NextResponse.json({ error: 'Claim not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Claim not found or unauthorized' }, { status: 404 });
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const claimData = claim as any;
-
-    if (claimData.status !== 'pending') {
-      return NextResponse.json({ error: `Claim already ${claimData.status}` }, { status: 400 });
+    if (claim.status !== 'pending') {
+      return NextResponse.json({ error: `Claim already ${claim.status}` }, { status: 400 });
     }
 
     // Get mission
     const { data: mission } = await db
       .from('missions')
       .select('*')
-      .eq('id', claimData.mission_id)
+      .eq('id', claim.mission_id)
       .single();
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const missionData = mission as any;
+    if (!mission) {
+      return NextResponse.json({ error: 'Mission not found' }, { status: 404 });
+    }
 
     // Update claim with proof
     await db
@@ -105,7 +110,7 @@ export async function POST(request: NextRequest) {
       .eq('id', claim_id);
 
     // Determine if this claim should be audited
-    const auditRate = getAuditRate(agentData.trust_tier);
+    const auditRate = getAuditRate(agent.trust_tier);
     // 🛡️ SECURITY: Force audit if proof was flagged
     const shouldAudit = proofCheck.flagged || Math.random() * 100 < auditRate;
 
@@ -124,16 +129,14 @@ export async function POST(request: NextRequest) {
         .select()
         .single();
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const auditData = audit as any;
       auditResult = { 
         audited: true, 
-        audit_id: auditData?.id,
+        audit_id: audit?.id,
         security_flagged: proofCheck.flagged,
       };
     } else {
       // Auto-approve (no audit needed)
-      await processApproval(db, claimData, missionData, agentData);
+      await processApproval(db, claim, mission, agent);
       auditResult = { audited: false, auto_approved: true };
     }
 
@@ -154,11 +157,8 @@ export async function POST(request: NextRequest) {
 // Helper to process approved claims
 async function processApproval(
   db: SupabaseClient,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   claim: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   mission: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   agent: any
 ) {
   const xpReward = mission.xp_reward;

@@ -1,5 +1,6 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import { generateCSRFToken } from '@/lib/middleware';
 
 // Lazy initialization to avoid build-time errors
 let supabase: SupabaseClient | null = null;
@@ -23,6 +24,9 @@ function generateReferralCode(name: string): string {
   const cleanName = name.replace(/[^a-zA-Z0-9]/g, '').substring(0, 4).toUpperCase();
   return `${cleanName}-${random}`;
 }
+
+// Import JWT utilities
+import { generateJWT } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
   try {
@@ -140,7 +144,13 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({
+    // Generate JWT token
+    const sessionToken = generateJWT(agent.id, wallet_address, agent.name, 'agent');
+    
+    // Generate CSRF token for future requests
+    const csrfToken = generateCSRFToken();
+
+    const response = NextResponse.json({
       success: true,
       agent: {
         id: agent.id,
@@ -148,8 +158,32 @@ export async function POST(request: NextRequest) {
         xp: agent.xp,
         referral_code: agent.referral_code,
         rank_title: agent.rank_title
+      },
+      session: {
+        token: sessionToken,
+        expires_in: 7 * 24 * 60 * 60 // 7 days in seconds
       }
     });
+
+    // Set session token as HTTP-only cookie
+    response.cookies.set('session_token', sessionToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60, // 7 days
+      path: '/'
+    });
+
+    // Set CSRF token as non-HTTP-only cookie (accessible by JavaScript)
+    response.cookies.set('csrf_token', csrfToken, {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60, // 7 days
+      path: '/'
+    });
+
+    return response;
 
   } catch (error) {
     console.error('Registration error:', error);

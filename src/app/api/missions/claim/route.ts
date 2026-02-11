@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { getSecurityNotice } from '@/lib/security';
+import { authenticateAPI } from '@/lib/middleware';
 
 // Lazy initialization for Vercel build
 let supabase: SupabaseClient | null = null;
@@ -14,31 +15,40 @@ function getSupabase(): SupabaseClient {
   return supabase;
 }
 
-// POST /api/missions/claim - Claim a mission
+// POST /api/missions/claim - Claim a mission (requires authentication)
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { mission_id, agent_id, wallet_address } = body;
-
-    if (!mission_id || !agent_id || !wallet_address) {
+    // Authenticate request
+    const auth = await authenticateAPI(request, true);
+    
+    if (!auth.authenticated || !auth.agentId) {
       return NextResponse.json(
-        { error: 'mission_id, agent_id, and wallet_address required' },
+        { error: 'Authentication required', details: auth.error },
+        { status: 401 }
+      );
+    }
+
+    const body = await request.json();
+    const { mission_id } = body;
+
+    if (!mission_id) {
+      return NextResponse.json(
+        { error: 'mission_id is required' },
         { status: 400 }
       );
     }
 
     const db = getSupabase();
 
-    // Verify agent
+    // Get agent info
     const { data: agent, error: agentError } = await db
       .from('agents')
       .select('id, xp, trust_tier, youtube_verified_at')
-      .eq('id', agent_id)
-      .eq('wallet_address', wallet_address)
+      .eq('id', auth.agentId)
       .single();
 
     if (agentError || !agent) {
-      return NextResponse.json({ error: 'Agent not found or wallet mismatch' }, { status: 403 });
+      return NextResponse.json({ error: 'Agent not found' }, { status: 403 });
     }
 
     // Get mission
@@ -52,21 +62,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Mission not found' }, { status: 404 });
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const missionData = mission as any;
-
     // Can't claim your own mission
-    if (missionData.creator_id === agent_id) {
+    if (mission.requester_agent_id === auth.agentId) {
       return NextResponse.json({ error: 'Cannot claim your own mission' }, { status: 400 });
     }
 
     // Check mission is active
-    if (missionData.status !== 'active') {
+    if (mission.status !== 'active') {
       return NextResponse.json({ error: 'Mission is not active' }, { status: 400 });
     }
 
     // Check mission isn't full
-    if (missionData.current_count >= missionData.target_count) {
+    if (mission.current_count >= mission.target_count) {
       return NextResponse.json({ error: 'Mission is already complete' }, { status: 400 });
     }
 
@@ -75,7 +82,7 @@ export async function POST(request: NextRequest) {
       .from('claims')
       .select('id, status')
       .eq('mission_id', mission_id)
-      .eq('agent_id', agent_id)
+      .eq('agent_id', auth.agentId)
       .single();
 
     if (existingClaim) {
@@ -90,9 +97,9 @@ export async function POST(request: NextRequest) {
       .from('claims')
       .insert({
         mission_id,
-        agent_id,
+        agent_id: auth.agentId,
         status: 'pending',
-        xp_escrow: missionData.xp_reward,
+        xp_escrow: mission.xp_reward,
       })
       .select()
       .single();
