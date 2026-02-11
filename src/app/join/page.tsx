@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ChevronLeft, Wallet, User, Youtube, Check, Loader2, AlertCircle } from 'lucide-react';
+import { getCSRFToken } from '@/lib/csrf';
 
 // Phantom wallet types in src/types/phantom.d.ts
 
@@ -96,9 +97,16 @@ export default function JoinPage() {
     setLoading(true);
 
     try {
+      // Get CSRF token from cookies
+      const csrfToken = getCSRFToken();
+      
       const res = await fetch('/api/agents/register', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {})
+        },
+        credentials: 'include', // Include cookies
         body: JSON.stringify(formData)
       });
 
