@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
 
     const { data: agents, error } = await db
       .from('agents')
-      .select('id, name, tagline, avatar_url, xp, rank_title, missions_completed, is_founding_swarm, referral_count, created_at')
+      .select('id, name, tagline, avatar_url, xp, rank_title, missions_completed, is_founding_swarm, referral_count, created_at, wallet_address')
       .order('xp', { ascending: false })
       .limit(limit);
 
