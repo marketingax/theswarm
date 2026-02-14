@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bot, BarChart3, Target, Users, Zap, Wallet, LogOut } from 'lucide-react';
+import { Bot, BarChart3, Target, Users, Zap, Wallet, LogOut, Shield } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 export default function Nav() {
@@ -10,10 +10,14 @@ export default function Nav() {
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  const ADMIN_WALLET = 'Fu7QnuVuGu1piks6FYeqp7GdP4P8MWjMeAeBbG5XYdUD';
 
   useEffect(() => {
     const storedWallet = localStorage.getItem('connectedWallet');
     setWalletAddress(storedWallet);
+    setIsAdmin(storedWallet === ADMIN_WALLET);
   }, []);
 
   const navItems = [
@@ -22,6 +26,7 @@ export default function Nav() {
     { name: 'Leaderboard', href: '/leaderboard', icon: Zap },
     { name: 'Creator Program', href: '/creator-program', icon: Users },
     { name: 'Profile', href: '/profile', icon: Bot },
+    ...(isAdmin ? [{ name: 'Admin', href: '/admin', icon: Shield }] : []),
   ];
 
   const formatWallet = (addr: string) => {
@@ -35,6 +40,7 @@ export default function Nav() {
       // Store in localStorage
       localStorage.setItem('connectedWallet', walletAddr);
       setWalletAddress(walletAddr);
+      setIsAdmin(walletAddr === ADMIN_WALLET);
       setShowWalletModal(false);
       
       // Optionally verify wallet in backend
@@ -47,8 +53,8 @@ export default function Nav() {
       if (res.ok) {
         const data = await res.json();
         console.log('Wallet verified:', data);
-        // Redirect to dashboard
-        window.location.href = '/dashboard';
+        // Redirect to appropriate dashboard
+        window.location.href = walletAddr === ADMIN_WALLET ? '/admin' : '/dashboard';
       }
     } catch (err) {
       console.error('Error connecting wallet:', err);
@@ -146,22 +152,23 @@ export default function Nav() {
         )}
       </div>
 
-      {/* Wallet Connection Modal */}
+      {/* Wallet Connection Modal - Full Screen Overlay */}
       <AnimatePresence>
         {showWalletModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setShowWalletModal(false)}
-            className="fixed inset-0 bg-black/50 z-40 flex items-start justify-center pt-20 p-4 overflow-y-auto"
-          >
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowWalletModal(false)}
+              className="fixed inset-0 bg-black/50 z-50"
+            />
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-black border border-yellow-500/20 rounded-lg p-6 max-w-md w-full"
+              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-black border border-yellow-500/20 rounded-lg p-6 max-w-md w-full mx-4"
             >
               <h2 className="text-2xl font-bold text-yellow-400 mb-6 flex items-center gap-2">
                 <Wallet className="w-6 h-6" />
@@ -223,7 +230,7 @@ export default function Nav() {
                 Cancel
               </button>
             </motion.div>
-          </motion.div>
+          </>
         )}
       </AnimatePresence>
     </nav>
