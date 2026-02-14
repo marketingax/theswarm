@@ -203,13 +203,13 @@ export default function DashboardPage() {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="bg-gray-900/50 border border-gray-800 rounded-xl p-6"
           >
-            <div className="text-3xl font-bold text-yellow-500">{agent.xp.toLocaleString()}</div>
+            <div className="text-2xl sm:text-3xl font-bold text-yellow-500">{agent.xp.toLocaleString()}</div>
             <div className="text-gray-400 text-sm flex items-center gap-2">
               <Award className="w-4 h-4" /> Total XP
             </div>
@@ -221,7 +221,7 @@ export default function DashboardPage() {
             transition={{ delay: 0.1 }}
             className="bg-gray-900/50 border border-gray-800 rounded-xl p-6"
           >
-            <div className="text-3xl font-bold text-green-400">{agent.missions_completed}</div>
+            <div className="text-2xl sm:text-3xl font-bold text-green-400">{agent.missions_completed}</div>
             <div className="text-gray-400 text-sm flex items-center gap-2">
               <Target className="w-4 h-4" /> Missions Done
             </div>
@@ -233,7 +233,7 @@ export default function DashboardPage() {
             transition={{ delay: 0.2 }}
             className="bg-gray-900/50 border border-gray-800 rounded-xl p-6"
           >
-            <div className={`text-lg font-bold ${trustBadge.color} flex items-center gap-2`}>
+            <div className={`text-base sm:text-lg font-bold ${trustBadge.color} flex items-center gap-2`}>
               <TrustIcon className="w-5 h-5" /> {trustBadge.label}
             </div>
             <div className="text-gray-400 text-sm">Trust Tier</div>
@@ -281,13 +281,13 @@ export default function DashboardPage() {
               <span className="text-green-400 text-sm">Verified ✓</span>
             </div>
           ) : (
-            <div className="flex items-center justify-between">
-              <p className="text-gray-400">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <p className="text-gray-400 text-sm sm:text-base">
                 Connect your YouTube channel to request subs and watch hours from the swarm.
               </p>
               <button
                 onClick={connectYouTube}
-                className="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2"
+                className="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 text-sm sm:text-base"
               >
                 <Youtube className="w-4 h-4" /> Connect YouTube
               </button>
@@ -317,7 +317,7 @@ export default function DashboardPage() {
               {missions.map(mission => (
                 <div
                   key={mission.id}
-                  className="bg-gray-800/50 border border-gray-700 rounded-lg p-4 flex items-center justify-between"
+                  className="bg-gray-800/50 border border-gray-700 rounded-lg p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
                 >
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
