@@ -16,6 +16,8 @@ interface Mission {
   usd_reward?: number;
   status: string;
   instructions?: string;
+  description?: string;
+  type?: string;
   requester?: { name: string };
 }
 
@@ -127,7 +129,7 @@ export default function MissionsPage() {
               >
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex-1">
-                    <h2 className="text-2xl font-bold mb-2">{mission.title || mission.target_name}</h2>
+                    <h2 className="text-2xl font-bold mb-2">{mission.target_name}</h2>
                     {(mission.description || mission.instructions) && (
                       <p className="text-gray-300 mb-3 leading-relaxed">{mission.description || mission.instructions}</p>
                     )}
