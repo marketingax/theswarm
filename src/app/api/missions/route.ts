@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { checkMissionContent, getSecurityNotice } from '@/lib/security';
+import { authenticateAPI } from '@/lib/middleware';
 
 // Lazy initialization for Vercel build
 let supabase: SupabaseClient | null = null;
@@ -14,7 +15,7 @@ function getSupabase(): SupabaseClient {
   return supabase;
 }
 
-// GET /api/missions - List active missions
+// GET /api/missions - List active missions (public)
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const type = searchParams.get('type'); // filter by mission_type
@@ -50,13 +51,21 @@ export async function GET(request: NextRequest) {
   });
 }
 
-// POST /api/missions - Create a new mission
+// POST /api/missions - Create a new mission (requires authentication)
 export async function POST(request: NextRequest) {
   try {
+    // Authenticate request
+    const auth = await authenticateAPI(request, true);
+    
+    if (!auth.authenticated || !auth.agentId) {
+      return NextResponse.json(
+        { error: 'Authentication required', details: auth.error },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
     const {
-      agent_id,
-      wallet_address,
       mission_type,
       target_url,
       target_name,
@@ -64,11 +73,12 @@ export async function POST(request: NextRequest) {
       target_hours = 0,
       xp_reward = 10,
       instructions,
+      xp_cost // Optional: if not provided, calculated from target_count * xp_reward
     } = body;
 
-    if (!agent_id || !wallet_address || !mission_type || !target_url) {
+    if (!mission_type || !target_url) {
       return NextResponse.json(
-        { error: 'agent_id, wallet_address, mission_type, and target_url required' },
+        { error: 'mission_type and target_url required' },
         { status: 400 }
       );
     }
@@ -107,50 +117,49 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 🛡️ SECURITY: Custom missions require extra scrutiny (flag for potential review)
-    const requiresReview = mission_type === 'custom';
-
     const db = getSupabase();
 
-    // Verify agent owns this wallet
+    // Get agent info
     const { data: agent, error: agentError } = await db
       .from('agents')
       .select('id, xp, trust_tier')
-      .eq('id', agent_id)
-      .eq('wallet_address', wallet_address)
+      .eq('id', auth.agentId)
       .single();
 
     if (agentError || !agent) {
-      return NextResponse.json({ error: 'Agent not found or wallet mismatch' }, { status: 403 });
+      return NextResponse.json({ error: 'Agent not found' }, { status: 403 });
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const agentData = agent as any;
-
-    // Calculate XP cost (based on target count and reward)
-    const xp_cost = target_count * xp_reward;
+    // Calculate XP cost if not provided
+    const calculatedXpCost = xp_cost || (target_count * xp_reward);
 
     // Check agent has enough XP
-    if (agentData.xp < xp_cost) {
+    if (agent.xp < calculatedXpCost) {
       return NextResponse.json(
-        { error: `Insufficient XP. Need ${xp_cost}, have ${agentData.xp}` },
+        { error: `Insufficient XP. Need ${calculatedXpCost}, have ${agent.xp}` },
         { status: 400 }
       );
     }
+
+    // 🛡️ SECURITY: Custom missions require extra scrutiny
+    const requiresReview = mission_type === 'custom';
 
     // Create mission
     const { data: mission, error: missionError } = await db
       .from('missions')
       .insert({
-        creator_id: agent_id,
-        type: mission_type,
-        title: target_name || 'Mission',
-        description: instructions || '',
+        requester_agent_id: auth.agentId,
+        mission_type,
         target_url,
+        target_name,
+        target_count,
+        target_hours,
         xp_reward,
-        stake_required: 0,
-        status: requiresReview ? 'pending_review' : 'active',
-        flagged: requiresReview,
+        instructions,
+        xp_cost: calculatedXpCost,
+        status: requiresReview ? 'pending' : 'active',
+        created_at: new Date().toISOString(),
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days
       })
       .select()
       .single();
@@ -160,30 +169,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to create mission' }, { status: 500 });
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const missionData = mission as any;
-
     // Deduct XP from agent (into escrow)
     await db
       .from('agents')
-      .update({ xp: agentData.xp - xp_cost, updated_at: new Date().toISOString() })
-      .eq('id', agent_id);
+      .update({ xp: agent.xp - calculatedXpCost, updated_at: new Date().toISOString() })
+      .eq('id', auth.agentId);
 
     // Log XP transaction
     await db
       .from('xp_transactions')
       .insert({
-        agent_id,
-        amount: -xp_cost,
+        agent_id: auth.agentId,
+        amount: -calculatedXpCost,
         action: 'escrow',
         description: `XP escrowed for mission: ${mission_type}`,
-        mission_id: missionData.id,
+        mission_id: mission.id,
       });
 
     return NextResponse.json({
       success: true,
       mission,
-      xp_deducted: xp_cost,
+      xp_deducted: calculatedXpCost,
       requires_review: requiresReview,
       security_notice: getSecurityNotice(),
     });

@@ -2,6 +2,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import nacl from 'tweetnacl';
 import bs58 from 'bs58';
+import { generateCSRFToken } from '@/lib/middleware';
 
 // Lazy initialization to avoid build-time errors
 let supabase: SupabaseClient | null = null;
@@ -19,6 +20,9 @@ function getSupabase(): SupabaseClient {
   }
   return supabase;
 }
+
+// Import JWT utilities
+import { generateJWT } from '@/lib/auth';
 
 /**
  * CLI Authentication for AI Agents
@@ -133,8 +137,11 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (existing) {
-      // Existing agent - return auth success with agent data
-      return NextResponse.json({
+      // Existing agent - generate JWT token
+      const sessionToken = generateJWT(existing.id, wallet_address, existing.name, 'agent');
+      const csrfToken = generateCSRFToken();
+      
+      const response = NextResponse.json({
         success: true,
         action: 'authenticated',
         agent: {
@@ -146,8 +153,31 @@ export async function POST(request: NextRequest) {
           referral_code: existing.referral_code,
           is_founding_swarm: existing.is_founding_swarm,
           missions_completed: existing.missions_completed
+        },
+        session: {
+          token: sessionToken,
+          expires_in: 7 * 24 * 60 * 60
         }
       });
+
+      // Set cookies
+      response.cookies.set('session_token', sessionToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 7 * 24 * 60 * 60,
+        path: '/'
+      });
+
+      response.cookies.set('csrf_token', csrfToken, {
+        httpOnly: false,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 7 * 24 * 60 * 60,
+        path: '/'
+      });
+
+      return response;
     }
 
     // New agent - must provide name
@@ -240,7 +270,11 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({
+    // Generate JWT token for new agent
+    const sessionToken = generateJWT(agent.id, wallet_address, agent.name, 'agent');
+    const csrfToken = generateCSRFToken();
+
+    const response = NextResponse.json({
       success: true,
       action: 'registered',
       agent: {
@@ -250,8 +284,31 @@ export async function POST(request: NextRequest) {
         xp: agent.xp,
         rank_title: agent.rank_title,
         referral_code: agent.referral_code
+      },
+      session: {
+        token: sessionToken,
+        expires_in: 7 * 24 * 60 * 60
       }
     });
+
+    // Set cookies
+    response.cookies.set('session_token', sessionToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60,
+      path: '/'
+    });
+
+    response.cookies.set('csrf_token', csrfToken, {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60,
+      path: '/'
+    });
+
+    return response;
 
   } catch (error) {
     console.error('CLI auth error:', error);

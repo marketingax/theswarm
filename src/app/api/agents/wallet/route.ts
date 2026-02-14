@@ -2,6 +2,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import nacl from 'tweetnacl';
 import bs58 from 'bs58';
+import { requireAuth } from '@/lib/auth';
 
 // Lazy initialization
 let supabase: SupabaseClient | null = null;
@@ -34,21 +35,29 @@ function getSupabase(): SupabaseClient {
 
 export async function POST(request: NextRequest) {
   try {
+    // Authenticate request
+    const auth = await requireAuth(request);
+    
+    if (!auth.authenticated || !auth.agentId) {
+      return NextResponse.json(
+        { success: false, error: 'Authentication required', details: auth.error },
+        { status: 401 }
+      );
+    }
+
     const db = getSupabase();
     const body = await request.json();
     
     const { 
-      agent_id,
-      old_wallet_address,
       new_wallet_address,
       signature,
       message
     } = body;
 
     // Validate required fields
-    if (!agent_id || !new_wallet_address || !signature || !message) {
+    if (!new_wallet_address || !signature || !message) {
       return NextResponse.json(
-        { success: false, error: 'agent_id, new_wallet_address, signature, and message are required' },
+        { success: false, error: 'new_wallet_address, signature, and message are required' },
         { status: 400 }
       );
     }
@@ -76,25 +85,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify agent exists
+    // Verify agent exists (should already be verified by requireAuth, but double-check)
     const { data: agent, error: fetchError } = await db
       .from('agents')
       .select('id, name, wallet_address')
-      .eq('id', agent_id)
+      .eq('id', auth.agentId)
       .single();
 
     if (fetchError || !agent) {
       return NextResponse.json(
         { success: false, error: 'Agent not found' },
         { status: 404 }
-      );
-    }
-
-    // Optional: Verify old wallet matches (extra security)
-    if (old_wallet_address && agent.wallet_address !== old_wallet_address) {
-      return NextResponse.json(
-        { success: false, error: 'Old wallet address does not match current wallet' },
-        { status: 400 }
       );
     }
 
@@ -116,7 +117,7 @@ export async function POST(request: NextRequest) {
     const { error: updateError } = await db
       .from('agents')
       .update({ wallet_address: new_wallet_address })
-      .eq('id', agent_id);
+      .eq('id', auth.agentId);
 
     if (updateError) {
       console.error('Wallet update error:', updateError);
