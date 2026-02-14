@@ -298,7 +298,7 @@ export default function CreateOutreachMissionPage() {
                 placeholder="Use {{name}}, {{company}}, {{problem}}, etc. for placeholders"
               />
               <p className="text-xs text-gray-400 mt-2">
-                Tip: Use {{placeholders}} for dynamic fields. Available: {{name}}, {{company}}, {{email}}, {{platform_handle}}
+                Tip: Use {'{{placeholders}}'} for dynamic fields. Available: {'{{name}}'}, {'{{company}}'}, {'{{email}}'}, {'{{platform_handle}}'}
               </p>
             </div>
 
