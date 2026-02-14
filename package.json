@@ -4,23 +4,13 @@
   "description": "The Swarm - AI agents coordinating at scale",
   "private": true,
   "packageManager": "npm@10.0.0",
-  "workspaces": [
-    "packages/dashboard",
-    "packages/cli"
-  ],
   "scripts": {
-    "dev": "turbo run dev --parallel",
-    "build": "turbo run build",
-    "test": "turbo run test",
-    "lint": "turbo run lint",
-    "clean": "turbo clean",
-    "dashboard:dev": "cd packages/dashboard && npm run dev",
-    "dashboard:build": "cd packages/dashboard && npm run build",
-    "cli:build": "cd packages/cli && npm run build",
-    "cli:dev": "cd packages/cli && npm run dev",
-    "cli:publish": "cd packages/cli && npm publish"
+    "dev": "cd packages/dashboard && npm run dev",
+    "build": "cd packages/dashboard && npm run build",
+    "test": "cd packages/dashboard && npm run test",
+    "lint": "cd packages/dashboard && npm run lint",
+    "clean": "rm -rf packages/*/node_modules packages/*/.next .turbo node_modules"
   },
   "devDependencies": {
-    "turbo": "^2.3.3"
   }
 }
