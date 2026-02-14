@@ -19,12 +19,13 @@ function getSupabase(): SupabaseClient {
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const db = getSupabase();
     const { status } = await request.json();
-    const missionId = params.id;
+    const { id } = await params;
+    const missionId = id;
 
     const { error } = await db
       .from('missions')
