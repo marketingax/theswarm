@@ -19,11 +19,12 @@ function getSupabase(): SupabaseClient {
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const db = getSupabase();
-    const missionId = params.id;
+    const { id } = await params;
+    const missionId = id;
 
     // In a real implementation, you might update a featured_missions table or add a featured flag
     // For now, we'll just return success
