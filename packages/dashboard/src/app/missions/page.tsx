@@ -8,7 +8,6 @@ import Link from 'next/link';
 interface Mission {
   id: number;
   title?: string;
-  type?: string;
   mission_type: string;
   target_url?: string;
   target_name: string;
@@ -19,8 +18,6 @@ interface Mission {
   status: string;
   description?: string;
   instructions?: string;
-  description?: string;
-  type?: string;
   requester?: { name: string };
 }
 
@@ -141,10 +138,10 @@ export default function MissionsPage() {
                         <Clock className="w-4 h-4" />
                         {mission.status}
                       </div>
-                      {mission.type && (
+                      {mission.mission_type && (
                         <div className="flex items-center gap-1">
                           <Target className="w-4 h-4" />
-                          {mission.type}
+                          {mission.mission_type}
                         </div>
                       )}
                     </div>
