@@ -1,6 +1,5 @@
 {
   "buildCommand": "npm install --legacy-peer-deps && npm --workspace=packages/dashboard run build",
   "installCommand": "npm install --legacy-peer-deps",
-  "outputDirectory": "packages/dashboard/.next",
-  "nodeVersion": "22.x"
+  "outputDirectory": "packages/dashboard/.next"
 }
