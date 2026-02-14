@@ -7,6 +7,7 @@ import Link from 'next/link';
 
 interface Mission {
   id: number;
+  title?: string;
   mission_type: string;
   target_url?: string;
   target_name: string;
@@ -15,6 +16,7 @@ interface Mission {
   xp_reward?: number;
   usd_reward?: number;
   status: string;
+  description?: string;
   instructions?: string;
   description?: string;
   type?: string;
