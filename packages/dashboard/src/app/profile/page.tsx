@@ -22,7 +22,7 @@ export default function ProfilePage() {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    const wallet = localStorage.getItem('walletAddress');
+    const wallet = localStorage.getItem('connectedWallet');
     if (wallet) {
       loadAgent(wallet);
     } else {
