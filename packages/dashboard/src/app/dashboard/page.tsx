@@ -51,6 +51,15 @@ export default function DashboardPage() {
   // Check for connected wallet
   useEffect(() => {
     const checkWallet = async () => {
+      // First check localStorage (from wallet modal)
+      const storedWallet = localStorage.getItem('connectedWallet');
+      if (storedWallet) {
+        setWalletAddress(storedWallet);
+        await loadAgent(storedWallet);
+        return;
+      }
+      
+      // Fall back to Phantom wallet check
       if (window.solana?.isPhantom && window.solana.isConnected && window.solana.publicKey) {
         const address = window.solana.publicKey.toString();
         setWalletAddress(address);
