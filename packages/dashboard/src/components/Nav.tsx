@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bot, BarChart3, Target, Users, Zap, Wallet, LogOut, Shield, Star } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 export default function Nav() {
   const [isOpen, setIsOpen] = useState(false);
@@ -43,14 +44,14 @@ export default function Nav() {
       setWalletAddress(walletAddr);
       setIsAdmin(walletAddr === ADMIN_WALLET);
       setShowWalletModal(false);
-      
+
       // Optionally verify wallet in backend
       const res = await fetch('/api/agents/verify-wallet', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ wallet_address: walletAddr })
       });
-      
+
       if (res.ok) {
         const data = await res.json();
         console.log('Wallet verified:', data);
@@ -155,21 +156,21 @@ export default function Nav() {
 
       {/* Wallet Connection Modal - Full Screen Overlay */}
       <AnimatePresence>
-        {showWalletModal && (
+        {showWalletModal && createPortal(
           <>
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowWalletModal(false)}
-              className="fixed inset-0 bg-black/50 z-50"
+              className="fixed inset-0 bg-black/50 z-[100]"
             />
             <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
+              initial={{ scale: 0.9, opacity: 0, x: "-50%", y: "-50%" }}
+              animate={{ scale: 1, opacity: 1, x: "-50%", y: "-50%" }}
+              exit={{ scale: 0.9, opacity: 0, x: "-50%", y: "-50%" }}
               onClick={(e) => e.stopPropagation()}
-              className="fixed bottom-1/4 left-1/2 -translate-x-1/2 z-50 bg-black border border-yellow-500/20 rounded-lg p-6 max-w-md w-full mx-4"
+              className="fixed top-1/2 left-1/2 z-[101] bg-black border border-yellow-500/20 rounded-lg p-6 max-w-md w-full mx-4 shadow-2xl shadow-yellow-500/10"
             >
               <h2 className="text-2xl font-bold text-yellow-400 mb-6 flex items-center gap-2">
                 <Wallet className="w-6 h-6" />
@@ -181,11 +182,10 @@ export default function Nav() {
                 <button
                   onClick={() => handleConnectWallet('Fu7QnuVuGu1piks6FYeqp7GdP4P8MWjMeAeBbG5XYdUD')}
                   disabled={loading}
-                  className={`w-full p-4 rounded-lg border transition-colors text-left ${
-                    walletAddress === 'Fu7QnuVuGu1piks6FYeqp7GdP4P8MWjMeAeBbG5XYdUD'
+                  className={`w-full p-4 rounded-lg border transition-colors text-left ${walletAddress === 'Fu7QnuVuGu1piks6FYeqp7GdP4P8MWjMeAeBbG5XYdUD'
                       ? 'border-yellow-500 bg-yellow-500/10 text-yellow-400'
                       : 'border-gray-700 bg-gray-900/50 text-gray-300 hover:border-yellow-500/50'
-                  }`}
+                    }`}
                 >
                   <div className="font-bold mb-1">Admin Wallet</div>
                   <div className="text-xs opacity-75">Fu7Qnu...YdUD</div>
@@ -198,11 +198,10 @@ export default function Nav() {
                 <button
                   onClick={() => handleConnectWallet('Hz6MqkncNL5UbPA4raYCoYpFac3ssa9Mjk5e8n9kDvCd')}
                   disabled={loading}
-                  className={`w-full p-4 rounded-lg border transition-colors text-left ${
-                    walletAddress === 'Hz6MqkncNL5UbPA4raYCoYpFac3ssa9Mjk5e8n9kDvCd'
+                  className={`w-full p-4 rounded-lg border transition-colors text-left ${walletAddress === 'Hz6MqkncNL5UbPA4raYCoYpFac3ssa9Mjk5e8n9kDvCd'
                       ? 'border-yellow-500 bg-yellow-500/10 text-yellow-400'
                       : 'border-gray-700 bg-gray-900/50 text-gray-300 hover:border-yellow-500/50'
-                  }`}
+                    }`}
                 >
                   <div className="font-bold mb-1">Agent Wallet (Miko)</div>
                   <div className="text-xs opacity-75">Hz6Mqk...DvCd</div>
@@ -231,7 +230,8 @@ export default function Nav() {
                 Cancel
               </button>
             </motion.div>
-          </>
+          </>,
+          document.body
         )}
       </AnimatePresence>
     </nav>
