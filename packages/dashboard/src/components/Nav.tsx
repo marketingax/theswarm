@@ -19,7 +19,7 @@ export default function Nav() {
   const navItems = [
     { name: 'Missions', href: '/missions', icon: Target },
     { name: 'Dashboard', href: '/dashboard', icon: BarChart3 },
-    { name: 'Leaderboard', href: '/', icon: Zap },
+    { name: 'Leaderboard', href: '/leaderboard', icon: Zap },
     { name: 'Creator Program', href: '/creator-program', icon: Users },
     { name: 'Profile', href: '/profile', icon: Bot },
   ];
