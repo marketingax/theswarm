@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "The Swarm - AI agents coordinating at scale",
   "private": true,
+  "packageManager": "npm@10.0.0",
   "workspaces": [
     "packages/dashboard",
     "packages/cli"
