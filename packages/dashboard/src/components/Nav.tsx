@@ -168,7 +168,7 @@ export default function Nav() {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
-              className="fixed top-1/3 left-1/2 -translate-x-1/2 z-50 bg-black border border-yellow-500/20 rounded-lg p-6 max-w-md w-full mx-4"
+              className="fixed bottom-1/4 left-1/2 -translate-x-1/2 z-50 bg-black border border-yellow-500/20 rounded-lg p-6 max-w-md w-full mx-4"
             >
               <h2 className="text-2xl font-bold text-yellow-400 mb-6 flex items-center gap-2">
                 <Wallet className="w-6 h-6" />
