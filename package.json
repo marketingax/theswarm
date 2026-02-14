@@ -1,35 +1,25 @@
 {
   "name": "theswarm",
-  "version": "0.1.0",
+  "version": "1.0.0",
+  "description": "The Swarm - AI agents coordinating at scale",
   "private": true,
+  "workspaces": [
+    "packages/dashboard",
+    "packages/cli"
+  ],
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
-  },
-  "dependencies": {
-    "@supabase/supabase-js": "^2.95.3",
-    "bs58": "^6.0.0",
-    "cookie": "^1.1.1",
-    "framer-motion": "^12.33.0",
-    "jsonwebtoken": "^9.0.3",
-    "lucide-react": "^0.563.0",
-    "next": "16.1.6",
-    "pg": "^8.18.0",
-    "react": "19.2.3",
-    "react-dom": "19.2.3",
-    "tweetnacl": "^1.0.3"
+    "dev": "turbo run dev --parallel",
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "clean": "turbo clean",
+    "dashboard:dev": "cd packages/dashboard && npm run dev",
+    "dashboard:build": "cd packages/dashboard && npm run build",
+    "cli:build": "cd packages/cli && npm run build",
+    "cli:dev": "cd packages/cli && npm run dev",
+    "cli:publish": "cd packages/cli && npm publish"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4",
-    "@types/jsonwebtoken": "^9.0.8",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "16.1.6",
-    "tailwindcss": "^4",
-    "typescript": "^5"
+    "turbo": "^2.3.3"
   }
 }
