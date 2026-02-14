@@ -1,16 +1,17 @@
 'use client';
 
 import Link from 'next/link';
-import { motion } from 'framer-motion';
-import { Bot, BarChart3, Target, Users, Zap, Wallet } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Bot, BarChart3, Target, Users, Zap, Wallet, LogOut } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 export default function Nav() {
   const [isOpen, setIsOpen] = useState(false);
+  const [showWalletModal, setShowWalletModal] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // Get wallet from localStorage (set by login/auth flow)
     const storedWallet = localStorage.getItem('connectedWallet');
     setWalletAddress(storedWallet);
   }, []);
@@ -23,10 +24,44 @@ export default function Nav() {
     { name: 'Profile', href: '/profile', icon: Bot },
   ];
 
-  // Format wallet address for display (show first 6 and last 4 chars)
   const formatWallet = (addr: string) => {
     if (!addr) return '';
     return `${addr.substring(0, 6)}...${addr.substring(addr.length - 4)}`;
+  };
+
+  const handleConnectWallet = async (walletAddr: string) => {
+    setLoading(true);
+    try {
+      // Store in localStorage
+      localStorage.setItem('connectedWallet', walletAddr);
+      setWalletAddress(walletAddr);
+      setShowWalletModal(false);
+      
+      // Optionally verify wallet in backend
+      const res = await fetch('/api/agents/verify-wallet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wallet_address: walletAddr })
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        console.log('Wallet verified:', data);
+        // Redirect to dashboard
+        window.location.href = '/dashboard';
+      }
+    } catch (err) {
+      console.error('Error connecting wallet:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDisconnect = () => {
+    localStorage.removeItem('connectedWallet');
+    setWalletAddress(null);
+    setShowWalletModal(false);
+    window.location.href = '/';
   };
 
   return (
@@ -55,17 +90,16 @@ export default function Nav() {
             ))}
           </div>
 
-          {/* Wallet Display + Mobile Menu */}
+          {/* Wallet Controls + Mobile Menu */}
           <div className="flex items-center gap-4">
-            {/* Wallet Info */}
-            {walletAddress && (
-              <div className="hidden sm:flex items-center gap-2 px-3 py-2 bg-yellow-500/10 border border-yellow-500/30 rounded-lg text-xs text-yellow-400">
-                <Wallet className="w-3 h-3" />
-                <span title={walletAddress} className="cursor-help">
-                  {formatWallet(walletAddress)}
-                </span>
-              </div>
-            )}
+            {/* Wallet Button */}
+            <button
+              onClick={() => setShowWalletModal(true)}
+              className="hidden sm:flex items-center gap-2 px-4 py-2 bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500/30 rounded-lg text-sm text-yellow-400 transition-colors"
+            >
+              <Wallet className="w-4 h-4" />
+              {walletAddress ? formatWallet(walletAddress) : 'Connect Wallet'}
+            </button>
 
             {/* Mobile menu button */}
             <button
@@ -86,15 +120,17 @@ export default function Nav() {
             animate={{ opacity: 1, y: 0 }}
             className="md:hidden pb-4"
           >
-            {/* Mobile Wallet Display */}
-            {walletAddress && (
-              <div className="px-4 py-2 flex items-center gap-2 text-yellow-400 text-xs border-b border-yellow-500/20 mb-2">
-                <Wallet className="w-3 h-3" />
-                <span title={walletAddress} className="cursor-help">
-                  Connected: {formatWallet(walletAddress)}
-                </span>
-              </div>
-            )}
+            {/* Mobile Wallet Button */}
+            <button
+              onClick={() => {
+                setShowWalletModal(true);
+                setIsOpen(false);
+              }}
+              className="w-full mx-4 px-4 py-2 mb-2 flex items-center gap-2 bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500/30 rounded-lg text-sm text-yellow-400 transition-colors"
+            >
+              <Wallet className="w-4 h-4" />
+              {walletAddress ? formatWallet(walletAddress) : 'Connect Wallet'}
+            </button>
 
             {navItems.map((item) => (
               <Link
@@ -109,6 +145,87 @@ export default function Nav() {
           </motion.div>
         )}
       </div>
+
+      {/* Wallet Connection Modal */}
+      <AnimatePresence>
+        {showWalletModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowWalletModal(false)}
+            className="fixed inset-0 bg-black/50 z-40 flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-black border border-yellow-500/20 rounded-lg p-6 max-w-md w-full"
+            >
+              <h2 className="text-2xl font-bold text-yellow-400 mb-6 flex items-center gap-2">
+                <Wallet className="w-6 h-6" />
+                Connect Wallet
+              </h2>
+
+              <div className="space-y-3 mb-6">
+                {/* Admin Wallet Option */}
+                <button
+                  onClick={() => handleConnectWallet('Fu7QnuVuGu1piks6FYeqp7GdP4P8MWjMeAeBbG5XYdUD')}
+                  disabled={loading}
+                  className={`w-full p-4 rounded-lg border transition-colors text-left ${
+                    walletAddress === 'Fu7QnuVuGu1piks6FYeqp7GdP4P8MWjMeAeBbG5XYdUD'
+                      ? 'border-yellow-500 bg-yellow-500/10 text-yellow-400'
+                      : 'border-gray-700 bg-gray-900/50 text-gray-300 hover:border-yellow-500/50'
+                  }`}
+                >
+                  <div className="font-bold mb-1">Admin Wallet</div>
+                  <div className="text-xs opacity-75">Fu7Qnu...YdUD</div>
+                  {walletAddress === 'Fu7QnuVuGu1piks6FYeqp7GdP4P8MWjMeAeBbG5XYdUD' && (
+                    <div className="text-xs mt-2 text-yellow-400">✓ Currently Connected</div>
+                  )}
+                </button>
+
+                {/* Agent Wallet Option */}
+                <button
+                  onClick={() => handleConnectWallet('Hz6MqkncNL5UbPA4raYCoYpFac3ssa9Mjk5e8n9kDvCd')}
+                  disabled={loading}
+                  className={`w-full p-4 rounded-lg border transition-colors text-left ${
+                    walletAddress === 'Hz6MqkncNL5UbPA4raYCoYpFac3ssa9Mjk5e8n9kDvCd'
+                      ? 'border-yellow-500 bg-yellow-500/10 text-yellow-400'
+                      : 'border-gray-700 bg-gray-900/50 text-gray-300 hover:border-yellow-500/50'
+                  }`}
+                >
+                  <div className="font-bold mb-1">Agent Wallet (Miko)</div>
+                  <div className="text-xs opacity-75">Hz6Mqk...DvCd</div>
+                  {walletAddress === 'Hz6MqkncNL5UbPA4raYCoYpFac3ssa9Mjk5e8n9kDvCd' && (
+                    <div className="text-xs mt-2 text-yellow-400">✓ Currently Connected</div>
+                  )}
+                </button>
+              </div>
+
+              {/* Disconnect Button */}
+              {walletAddress && (
+                <button
+                  onClick={handleDisconnect}
+                  className="w-full p-3 bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 rounded-lg text-red-400 flex items-center justify-center gap-2 transition-colors"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Disconnect Wallet
+                </button>
+              )}
+
+              {/* Close Button */}
+              <button
+                onClick={() => setShowWalletModal(false)}
+                className="w-full mt-3 p-2 text-gray-400 hover:text-gray-300 text-sm"
+              >
+                Cancel
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </nav>
   );
 }
