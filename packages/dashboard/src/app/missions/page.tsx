@@ -127,19 +127,19 @@ export default function MissionsPage() {
               >
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex-1">
-                    <h2 className="text-2xl font-bold mb-2">{mission.target_name}</h2>
-                    {mission.instructions && (
-                      <p className="text-gray-300 mb-3 leading-relaxed">{mission.instructions}</p>
+                    <h2 className="text-2xl font-bold mb-2">{mission.title || mission.target_name}</h2>
+                    {(mission.description || mission.instructions) && (
+                      <p className="text-gray-300 mb-3 leading-relaxed">{mission.description || mission.instructions}</p>
                     )}
                     <div className="flex items-center gap-4 text-sm text-gray-400">
                       <div className="flex items-center gap-1">
                         <Clock className="w-4 h-4" />
                         {mission.status}
                       </div>
-                      {mission.requester && (
+                      {mission.type && (
                         <div className="flex items-center gap-1">
-                          <Users className="w-4 h-4" />
-                          by {mission.requester.name}
+                          <Target className="w-4 h-4" />
+                          {mission.type}
                         </div>
                       )}
                     </div>
