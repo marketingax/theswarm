@@ -1,6 +1,5 @@
 {
   "buildCommand": "turbo run build -- --filter=theswarm-dashboard",
   "installCommand": "npm install",
-  "outputDirectory": "packages/dashboard/.next",
-  "publicPath": "packages/dashboard/public"
+  "outputDirectory": "packages/dashboard/.next"
 }
