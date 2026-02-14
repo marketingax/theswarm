@@ -6,6 +6,7 @@ import { User, Copy, Award, Zap, Shield, TrendingUp, ExternalLink } from 'lucide
 
 interface Agent {
   id: string;
+  agent_id: string;
   name: string;
   xp: number;
   rank_title: string;
