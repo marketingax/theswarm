@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
 
     let query = db
       .from('missions')
-      .select('id, target_name, target_platform, proof_type, success_criteria, usd_reward, requires_disclosure, created_at, target_list, target_count')
+      .select('id, target_name, target_platform, proof_type, success_criteria, usd_reward, requires_disclosure, created_at, target_list, target_count, max_claims')
       .eq('mission_type', 'outreach')
       .eq('status', status)
       .order('created_at', { ascending: false })
