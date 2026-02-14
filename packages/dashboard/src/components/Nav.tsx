@@ -154,7 +154,7 @@ export default function Nav() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setShowWalletModal(false)}
-            className="fixed inset-0 bg-black/50 z-40 flex items-center justify-center p-4"
+            className="fixed inset-0 bg-black/50 z-40 flex items-start justify-center pt-20 p-4 overflow-y-auto"
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
