@@ -227,7 +227,7 @@ export default function CreateOutreachMissionPage() {
                   <option value="email_opened">Email opened (tracked)</option>
                   <option value="reply_received">Reply received</option>
                   <option value="meeting_scheduled">Meeting scheduled</option>
-                  <option value="call_completed">Call completed (>5 min)</option>
+                  <option value="call_completed">Call completed (&gt;5 min)</option>
                 </select>
               </div>
             </div>
