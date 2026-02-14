@@ -17,7 +17,7 @@ function getSupabase(): SupabaseClient {
 // Admin rejects an outreach proof
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     // Authenticate as admin
@@ -32,7 +32,7 @@ export async function POST(
     // For MVP: Assume any authenticated user can reject
     // In production: Check admin role
 
-    const proofId = params.id;
+    const { id: proofId } = await context.params;
     if (!proofId) {
       return NextResponse.json(
         { error: 'Invalid proof ID' },
