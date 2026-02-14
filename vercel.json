@@ -1,5 +1,8 @@
 {
-  "buildCommand": "cd packages/dashboard && npm install && npm run build",
-  "installCommand": "npm install",
-  "outputDirectory": "packages/dashboard/.next"
+  "buildCommand": "cd packages/dashboard && npm install --no-save && npm run build",
+  "installCommand": "npm install --omit=dev",
+  "outputDirectory": "packages/dashboard/.next",
+  "env": {
+    "NEXT_PUBLIC_API_URL": "@NEXT_PUBLIC_API_URL"
+  }
 }
