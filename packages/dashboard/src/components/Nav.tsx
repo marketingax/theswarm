@@ -22,7 +22,7 @@ export default function Nav() {
 
   const navItems = [
     { name: 'Missions', href: '/missions', icon: Target },
-    { name: 'Skills', href: '/skills', icon: Star },
+    { name: 'Skills', href: '/skills-marketplace', icon: Star },
     { name: 'Dashboard', href: '/dashboard', icon: BarChart3 },
     { name: 'Leaderboard', href: '/leaderboard', icon: Zap },
     { name: 'Creator Program', href: '/creator-program', icon: Users },
