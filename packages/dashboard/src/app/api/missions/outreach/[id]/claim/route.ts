@@ -17,7 +17,7 @@ function getSupabase(): SupabaseClient {
 // Agent claims an outreach mission
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     // Authenticate
@@ -29,7 +29,8 @@ export async function POST(
       );
     }
 
-    const missionId = parseInt(params.id);
+    const { id } = await context.params;
+    const missionId = parseInt(id);
     if (isNaN(missionId)) {
       return NextResponse.json(
         { error: 'Invalid mission ID' },
@@ -165,10 +166,11 @@ function extractPlaceholders(template: string): string[] {
 // GET /api/missions/outreach/[id]/claim (get mission details for preview)
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const missionId = parseInt(params.id);
+    const { id } = await context.params;
+    const missionId = parseInt(id);
     if (isNaN(missionId)) {
       return NextResponse.json(
         { error: 'Invalid mission ID' },
