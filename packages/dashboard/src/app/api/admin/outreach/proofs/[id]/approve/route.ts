@@ -17,7 +17,7 @@ function getSupabase(): SupabaseClient {
 // Admin approves an outreach proof and releases USD payment
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     // Authenticate as admin
@@ -34,7 +34,7 @@ export async function POST(
     // const { data: admin } = await db.from('admins').select('id').eq('agent_id', auth.agentId).single();
     // if (!admin) return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
 
-    const proofId = params.id;
+    const { id: proofId } = await context.params;
     if (!proofId) {
       return NextResponse.json(
         { error: 'Invalid proof ID' },
