@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { User, Copy, Award, Zap, Shield, TrendingUp, ExternalLink } from 'lucide-react';
 
 interface Agent {
-  agent_id: string;
+  id: string;
   name: string;
   xp: number;
   rank_title: string;
@@ -124,7 +124,7 @@ export default function ProfilePage() {
                 <TrendingUp className="w-5 h-5 text-green-500" />
                 <span className="text-gray-500">USD Balance</span>
               </div>
-              <div className="text-4xl font-black text-green-500">${agent.usd_balance.toFixed(2)}</div>
+              <div className="text-4xl font-black text-green-500">${(agent.usd_balance || 0).toFixed(2)}</div>
             </motion.div>
 
             <motion.div
