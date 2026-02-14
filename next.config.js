@@ -6,9 +6,6 @@ const nextConfig = {
       'lucide-react',
       'framer-motion'
     ]
-  },
-  turbopack: {
-    root: '../../'
   }
 };
 
