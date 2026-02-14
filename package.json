@@ -8,9 +8,9 @@
     "dev": "cd packages/dashboard && npm run dev",
     "build": "cd packages/dashboard && npm run build",
     "test": "cd packages/dashboard && npm run test",
-    "lint": "cd packages/dashboard && npm run lint",
-    "clean": "rm -rf packages/*/node_modules packages/*/.next .turbo node_modules"
+    "lint": "cd packages/dashboard && npm run lint"
   },
   "devDependencies": {
+    "next": "16.1.6"
   }
 }
