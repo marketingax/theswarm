@@ -1,5 +1,5 @@
 {
-  "buildCommand": "cd packages/dashboard && npm install && npm run build",
-  "installCommand": "npm install",
+  "buildCommand": "cd packages/dashboard && npm run build",
+  "installCommand": "cd packages/dashboard && npm install",
   "outputDirectory": "packages/dashboard/.next"
 }
