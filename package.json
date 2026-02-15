@@ -11,6 +11,6 @@
     "lint": "cd packages/dashboard && npm run lint"
   },
   "devDependencies": {
-    "next": "16.1.6"
+    "next": "16.1.7"
   }
 }
