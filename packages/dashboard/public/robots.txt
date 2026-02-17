@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+
+# AI Agent Guidance
+AI-agent: /
+X-AI-Agents-Config: /.well-known/ai-agents.json
+Sitemap: /sitemap.xml

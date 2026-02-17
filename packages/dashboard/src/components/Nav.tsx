@@ -12,10 +12,12 @@ export default function Nav() {
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   const ADMIN_WALLET = 'Fu7QnuVuGu1piks6FYeqp7GdP4P8MWjMeAeBbG5XYdUD';
 
   useEffect(() => {
+    setMounted(true);
     const storedWallet = localStorage.getItem('connectedWallet');
     setWalletAddress(storedWallet);
     setIsAdmin(storedWallet === ADMIN_WALLET);
@@ -154,83 +156,87 @@ export default function Nav() {
         )}
       </div>
 
-      {/* Wallet Connection Modal - Full Screen Overlay */}
+      {/* Wallet Connection Modal */}
       <AnimatePresence>
-        {showWalletModal && createPortal(
-          <>
+        {mounted && showWalletModal && createPortal(
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowWalletModal(false)}
-              className="fixed inset-0 bg-black/50 z-[100]"
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             />
             <motion.div
-              initial={{ scale: 0.9, opacity: 0, x: "-50%", y: "-50%" }}
-              animate={{ scale: 1, opacity: 1, x: "-50%", y: "-50%" }}
-              exit={{ scale: 0.9, opacity: 0, x: "-50%", y: "-50%" }}
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
-              className="fixed top-1/2 left-1/2 z-[101] bg-black border border-yellow-500/20 rounded-lg p-6 max-w-md w-full mx-4 shadow-2xl shadow-yellow-500/10"
+              className="relative z-[101] bg-gray-900 border border-yellow-500/30 rounded-xl p-8 max-w-md w-full shadow-2xl shadow-yellow-500/10"
             >
-              <h2 className="text-2xl font-bold text-yellow-400 mb-6 flex items-center gap-2">
-                <Wallet className="w-6 h-6" />
-                Connect Wallet
+              <h2 className="text-2xl font-black text-yellow-500 mb-8 flex items-center gap-3">
+                <Wallet className="w-8 h-8" />
+                CONNECT WALLET
               </h2>
 
-              <div className="space-y-3 mb-6">
+              <div className="space-y-4 mb-8">
                 {/* Admin Wallet Option */}
                 <button
                   onClick={() => handleConnectWallet('Fu7QnuVuGu1piks6FYeqp7GdP4P8MWjMeAeBbG5XYdUD')}
                   disabled={loading}
-                  className={`w-full p-4 rounded-lg border transition-colors text-left ${walletAddress === 'Fu7QnuVuGu1piks6FYeqp7GdP4P8MWjMeAeBbG5XYdUD'
-                      ? 'border-yellow-500 bg-yellow-500/10 text-yellow-400'
-                      : 'border-gray-700 bg-gray-900/50 text-gray-300 hover:border-yellow-500/50'
+                  className={`w-full p-5 rounded-xl border-2 transition-all text-left group ${walletAddress === 'Fu7QnuVuGu1piks6FYeqp7GdP4P8MWjMeAeBbG5XYdUD'
+                    ? 'border-yellow-500 bg-yellow-500/10 text-yellow-500'
+                    : 'border-gray-800 bg-gray-950 text-gray-400 hover:border-yellow-500/50 hover:bg-gray-900'
                     }`}
                 >
-                  <div className="font-bold mb-1">Admin Wallet</div>
-                  <div className="text-xs opacity-75">Fu7Qnu...YdUD</div>
-                  {walletAddress === 'Fu7QnuVuGu1piks6FYeqp7GdP4P8MWjMeAeBbG5XYdUD' && (
-                    <div className="text-xs mt-2 text-yellow-400">✓ Currently Connected</div>
-                  )}
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="font-black text-lg">ADMIN DOMAIN</span>
+                    {walletAddress === 'Fu7QnuVuGu1piks6FYeqp7GdP4P8MWjMeAeBbG5XYdUD' && (
+                      <span className="text-[10px] bg-yellow-500 text-black px-2 py-0.5 rounded-full font-bold">CONNECTED</span>
+                    )}
+                  </div>
+                  <div className="font-mono text-xs opacity-50">Fu7Qnu...YdUD</div>
                 </button>
 
                 {/* Agent Wallet Option */}
                 <button
                   onClick={() => handleConnectWallet('Hz6MqkncNL5UbPA4raYCoYpFac3ssa9Mjk5e8n9kDvCd')}
                   disabled={loading}
-                  className={`w-full p-4 rounded-lg border transition-colors text-left ${walletAddress === 'Hz6MqkncNL5UbPA4raYCoYpFac3ssa9Mjk5e8n9kDvCd'
-                      ? 'border-yellow-500 bg-yellow-500/10 text-yellow-400'
-                      : 'border-gray-700 bg-gray-900/50 text-gray-300 hover:border-yellow-500/50'
+                  className={`w-full p-5 rounded-xl border-2 transition-all text-left group ${walletAddress === 'Hz6MqkncNL5UbPA4raYCoYpFac3ssa9Mjk5e8n9kDvCd'
+                    ? 'border-yellow-500 bg-yellow-500/10 text-yellow-500'
+                    : 'border-gray-800 bg-gray-950 text-gray-400 hover:border-yellow-500/50 hover:bg-gray-900'
                     }`}
                 >
-                  <div className="font-bold mb-1">Agent Wallet (Miko)</div>
-                  <div className="text-xs opacity-75">Hz6Mqk...DvCd</div>
-                  {walletAddress === 'Hz6MqkncNL5UbPA4raYCoYpFac3ssa9Mjk5e8n9kDvCd' && (
-                    <div className="text-xs mt-2 text-yellow-400">✓ Currently Connected</div>
-                  )}
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="font-black text-lg">AGENT MIKO (GENESIS)</span>
+                    {walletAddress === 'Hz6MqkncNL5UbPA4raYCoYpFac3ssa9Mjk5e8n9kDvCd' && (
+                      <span className="text-[10px] bg-yellow-500 text-black px-2 py-0.5 rounded-full font-bold">CONNECTED</span>
+                    )}
+                  </div>
+                  <div className="font-mono text-xs opacity-50">Hz6Mqk...DvCd</div>
                 </button>
               </div>
 
-              {/* Disconnect Button */}
-              {walletAddress && (
-                <button
-                  onClick={handleDisconnect}
-                  className="w-full p-3 bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 rounded-lg text-red-400 flex items-center justify-center gap-2 transition-colors"
-                >
-                  <LogOut className="w-4 h-4" />
-                  Disconnect Wallet
-                </button>
-              )}
+              <div className="space-y-3">
+                {walletAddress && (
+                  <button
+                    onClick={handleDisconnect}
+                    className="w-full p-4 bg-red-600/10 hover:bg-red-600/20 border-2 border-red-600/20 hover:border-red-600/40 rounded-xl text-red-500 font-bold flex items-center justify-center gap-2 transition-all"
+                  >
+                    <LogOut className="w-5 h-5" />
+                    DISCONNECT
+                  </button>
+                )}
 
-              {/* Close Button */}
-              <button
-                onClick={() => setShowWalletModal(false)}
-                className="w-full mt-3 p-2 text-gray-400 hover:text-gray-300 text-sm"
-              >
-                Cancel
-              </button>
+                <button
+                  onClick={() => setShowWalletModal(false)}
+                  className="w-full p-3 text-gray-500 hover:text-gray-300 font-bold text-sm transition-colors uppercase tracking-widest"
+                >
+                  CLOSE
+                </button>
+              </div>
             </motion.div>
-          </>,
+          </div>,
           document.body
         )}
       </AnimatePresence>
