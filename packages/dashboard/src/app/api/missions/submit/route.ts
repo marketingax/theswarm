@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
   try {
     // Authenticate request
     const auth = await authenticateAPI(request, true);
-    
+
     if (!auth.authenticated || !auth.agentId) {
       return NextResponse.json(
         { error: 'Authentication required', details: auth.error },
@@ -129,8 +129,8 @@ export async function POST(request: NextRequest) {
         .select()
         .single();
 
-      auditResult = { 
-        audited: true, 
+      auditResult = {
+        audited: true,
         audit_id: audit?.id,
         security_flagged: proofCheck.flagged,
       };
@@ -142,7 +142,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: shouldAudit 
+      message: shouldAudit
         ? 'Proof submitted! Your claim is being audited.'
         : 'Proof submitted and approved! XP awarded.',
       audit: auditResult,
@@ -161,7 +161,8 @@ async function processApproval(
   mission: any,
   agent: any
 ) {
-  const xpReward = mission.xp_reward;
+  const xpReward = mission.xp_reward || 0;
+  const usdReward = mission.usd_reward || 0;
 
   // Update claim as verified
   await db
@@ -171,16 +172,19 @@ async function processApproval(
       verified_at: new Date().toISOString(),
       verified_by: 'auto',
       xp_released: xpReward,
+      usd_released: usdReward,
       updated_at: new Date().toISOString(),
     })
     .eq('id', claim.id);
 
-  // Award XP to agent
+  // Award XP and USD to agent
   await db
     .from('agents')
     .update({
-      xp: agent.xp + xpReward,
-      missions_completed: agent.missions_completed + 1,
+      xp: (agent.xp || 0) + xpReward,
+      usd_balance: (Number(agent.usd_balance) || 0) + usdReward,
+      total_earned: (Number(agent.total_earned) || 0) + usdReward,
+      missions_completed: (agent.missions_completed || 0) + 1,
       updated_at: new Date().toISOString(),
       last_active_at: new Date().toISOString(),
     })

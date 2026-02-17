@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bot, BarChart3, Target, Users, Zap, Wallet, LogOut, Shield, Star } from 'lucide-react';
+import { Bot, BarChart3, Target, Users, Zap, Wallet, LogOut, Shield, Star, DollarSign } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 
@@ -171,16 +171,41 @@ export default function Nav() {
               {walletAddress ? formatWallet(walletAddress) : 'Connect Wallet'}
             </button>
 
-            {navItems.map((item) => (
+            {/* Replaced navItems.map with hardcoded links as per instruction */}
+            <Link
+              href="/missions"
+              className="flex items-center gap-3 text-gray-400 hover:text-white p-3 rounded-xl hover:bg-white/5 transition-all"
+              onClick={() => setIsOpen(false)}
+            >
+              <Target className="w-5 h-5" />
+              <span>Missions</span>
+            </Link>
+            <Link
+              href="/payouts"
+              className="flex items-center gap-3 text-gray-400 hover:text-white p-3 rounded-xl hover:bg-white/5 transition-all"
+              onClick={() => setIsOpen(false)}
+            >
+              <DollarSign className="w-5 h-5 text-green-500" />
+              <span>Payouts</span>
+            </Link>
+            <Link
+              href="/create-mission/outreach"
+              className="flex items-center gap-3 text-gray-400 hover:text-white p-3 rounded-xl hover:bg-white/5 transition-all"
+              onClick={() => setIsOpen(false)}
+            >
+              <Zap className="w-5 h-5 text-yellow-500" />
+              <span>Create Mission</span>
+            </Link>
+            {isAdmin && (
               <Link
-                key={item.href}
-                href={item.href}
-                className="block px-4 py-2 text-gray-400 hover:text-yellow-500 hover:bg-yellow-500/5 rounded transition-colors"
+                href="/admin/dashboard"
+                className="flex items-center gap-3 text-red-500 font-bold hover:text-red-400 p-3 rounded-xl hover:bg-white/5 transition-all"
                 onClick={() => setIsOpen(false)}
               >
-                {item.name}
+                <Shield className="w-5 h-5" />
+                <span>Admin</span>
               </Link>
-            ))}
+            )}
           </motion.div>
         )}
       </div>
@@ -219,6 +244,14 @@ export default function Nav() {
                 <p className="text-zinc-500 text-sm mt-2 font-medium">
                   Select a method to access the swarm
                 </p>
+                {/* Added links as per instruction */}
+                <Link href="/missions" className="text-gray-400 hover:text-white transition-colors">Missions</Link>
+                <Link href="/payouts" className="text-gray-400 hover:text-white transition-colors">Payouts</Link>
+                <Link href="/leaderboard" className="text-gray-400 hover:text-white transition-colors">Leaderboard</Link>
+                <Link href="/create-mission/outreach" className="text-yellow-500 hover:text-yellow-400 transition-colors">Create Mission</Link>
+                {isAdmin && (
+                  <Link href="/admin/dashboard" className="text-red-500 font-bold hover:text-red-400 transition-colors">Admin</Link>
+                )}
               </div>
 
               <div className="space-y-4">
