@@ -210,12 +210,12 @@ export default function Nav() {
         )}
       </div>
 
-      {/* Wallet Connection Modal */}
-      <AnimatePresence>
-        {mounted && showWalletModal && (
+      {/* Wallet Connection Modal - Moved to Portal */}
+      {mounted && showWalletModal && createPortal(
+        <AnimatePresence mode="wait">
           <div
-            className="fixed inset-0 flex items-center justify-center p-4"
-            style={{ zIndex: 9999, position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}
+            className="fixed inset-0 flex items-start justify-center p-4"
+            style={{ zIndex: 9999 }}
           >
             {/* Backdrop */}
             <motion.div
@@ -228,9 +228,9 @@ export default function Nav() {
 
             {/* Modal Content */}
             <motion.div
-              initial={{ scale: 0.9, opacity: 0, y: 70 }}
-              animate={{ scale: 1, opacity: 1, y: 120 }}
-              exit={{ scale: 0.9, opacity: 0, y: 140 }}
+              initial={{ scale: 0.9, opacity: 0, y: 150 }}
+              animate={{ scale: 1, opacity: 1, y: 190 }}
+              exit={{ scale: 0.9, opacity: 0, y: 210 }}
               onClick={(e) => e.stopPropagation()}
               className="relative z-[10000] bg-zinc-900 border border-yellow-500/30 rounded-2xl p-8 max-w-sm w-full shadow-[0_0_50px_rgba(234,179,8,0.1)]"
             >
@@ -314,8 +314,9 @@ export default function Nav() {
               </div>
             </motion.div>
           </div>
-        )}
-      </AnimatePresence>
+        </AnimatePresence>,
+        document.body
+      )}
     </nav>
   );
 }
