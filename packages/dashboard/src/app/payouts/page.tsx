@@ -23,7 +23,7 @@ export default function PayoutsPage() {
   const [withdrawing, setWithdrawing] = useState(false);
 
   useEffect(() => {
-    const wallet = localStorage.getItem('walletAddress');
+    const wallet = localStorage.getItem('connectedWallet');
     if (wallet) {
       loadPayoutInfo(wallet);
     } else {
@@ -66,6 +66,29 @@ export default function PayoutsPage() {
       console.error('Failed to withdraw:', err);
     } finally {
       setWithdrawing(false);
+    }
+  };
+
+  const handleFund = async () => {
+    const amount = prompt('How much USD would you like to deposit (mockup)?', '50');
+    if (!amount || isNaN(Number(amount))) return;
+
+    try {
+      const res = await fetch('/api/payouts/fund', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wallet: payout?.wallet_address, amount: Number(amount) })
+      });
+      const data = await res.json();
+      if (data.success && payout) {
+        setPayout({
+          ...payout,
+          usd_balance: data.new_balance
+        });
+        alert(`Successfully deposited $${amount}!`);
+      }
+    } catch (err) {
+      console.error('Failed to fund:', err);
     }
   };
 

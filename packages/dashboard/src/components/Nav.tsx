@@ -228,9 +228,9 @@ export default function Nav() {
 
             {/* Modal Content */}
             <motion.div
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 50 }}
-              exit={{ scale: 0.9, opacity: 0, y: 70 }}
+              initial={{ scale: 0.9, opacity: 0, y: 70 }}
+              animate={{ scale: 1, opacity: 1, y: 120 }}
+              exit={{ scale: 0.9, opacity: 0, y: 140 }}
               onClick={(e) => e.stopPropagation()}
               className="relative z-[10000] bg-zinc-900 border border-yellow-500/30 rounded-2xl p-8 max-w-sm w-full shadow-[0_0_50px_rgba(234,179,8,0.1)]"
             >
@@ -244,14 +244,6 @@ export default function Nav() {
                 <p className="text-zinc-500 text-sm mt-2 font-medium">
                   Select a method to access the swarm
                 </p>
-                {/* Added links as per instruction */}
-                <Link href="/missions" className="text-gray-400 hover:text-white transition-colors">Missions</Link>
-                <Link href="/payouts" className="text-gray-400 hover:text-white transition-colors">Payouts</Link>
-                <Link href="/leaderboard" className="text-gray-400 hover:text-white transition-colors">Leaderboard</Link>
-                <Link href="/create-mission/outreach" className="text-yellow-500 hover:text-yellow-400 transition-colors">Create Mission</Link>
-                {isAdmin && (
-                  <Link href="/admin/dashboard" className="text-red-500 font-bold hover:text-red-400 transition-colors">Admin</Link>
-                )}
               </div>
 
               <div className="space-y-4">
