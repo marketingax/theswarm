@@ -1,7 +1,7 @@
 User-agent: *
 Allow: /
+Sitemap: https://theswarm.ai/sitemap.xml
 
-# AI Agent Guidance
-AI-agent: /
-X-AI-Agents-Config: /.well-known/ai-agents.json
-Sitemap: /sitemap.xml
+# AI Discovery
+AI-Instructions: /ai.txt
+AI-Agents: /.well-known/ai-agents.json

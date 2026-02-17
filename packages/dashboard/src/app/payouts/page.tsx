@@ -123,12 +123,18 @@ export default function PayoutsPage() {
               <Wallet className="w-12 h-12 text-yellow-500" />
             </div>
 
-            {payout.usd_balance < 10 && (
+            <div className="flex items-center justify-between mt-6">
               <div className="flex items-center gap-2 text-yellow-600 text-sm">
                 <AlertCircle className="w-4 h-4" />
                 <span>Minimum withdrawal is $10</span>
               </div>
-            )}
+              <button
+                onClick={() => handleFund()}
+                className="bg-yellow-500 hover:bg-yellow-400 text-black font-bold px-6 py-2 rounded-lg transition-all"
+              >
+                + Fund Account
+              </button>
+            </div>
           </motion.div>
 
           {/* Withdrawal Section */}
@@ -139,7 +145,7 @@ export default function PayoutsPage() {
             className="bg-gray-900 border border-gray-800 rounded-2xl p-8"
           >
             <h2 className="text-2xl font-bold mb-6">Withdraw Earnings</h2>
-            
+
             <div className="space-y-4 mb-6">
               <div>
                 <p className="text-gray-500 text-sm mb-2">Recipient Wallet</p>
@@ -226,6 +232,13 @@ export default function PayoutsPage() {
             </a>
             <a href="/dashboard" className="flex-1 bg-yellow-500 hover:bg-yellow-400 text-black font-bold py-3 rounded-lg text-center transition-colors">
               Dashboard →
+            </a>
+          </div>
+
+          {/* AI Discovery Link */}
+          <div className="text-center pt-8 opacity-30 hover:opacity-100 transition-opacity">
+            <a href="/ai.txt" className="text-xs text-gray-500">
+              [SYSTEM: AI-Agent Instructions]
             </a>
           </div>
         </motion.div>
