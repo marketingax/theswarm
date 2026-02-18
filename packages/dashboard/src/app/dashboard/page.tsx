@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { 
-  Youtube, 
-  Wallet, 
-  Target, 
-  Award, 
-  CheckCircle, 
-  Clock, 
+import {
+  Youtube,
+  Wallet,
+  Target,
+  Award,
+  CheckCircle,
+  Clock,
   ExternalLink,
   AlertCircle,
   Shield
@@ -58,7 +58,7 @@ export default function DashboardPage() {
         await loadAgent(storedWallet);
         return;
       }
-      
+
       // Fall back to Phantom wallet check
       if (window.solana?.isPhantom && window.solana.isConnected && window.solana.publicKey) {
         const address = window.solana.publicKey.toString();
@@ -68,22 +68,22 @@ export default function DashboardPage() {
         setLoading(false);
       }
     };
-    
+
     checkWallet();
   }, []);
 
   // Load agent data
   const loadAgent = async (address: string) => {
     try {
-      // For now, fetch from leaderboard and find by wallet
-      const res = await fetch('/api/agents/leaderboard');
+      // Fetch specific profile for this wallet
+      const res = await fetch(`/api/agents/profile?wallet=${address}`);
       const data = await res.json();
-      
-      if (data.success && data.agents) {
-        const found = data.agents.find((a: Agent) => a.wallet_address === address);
-        if (found) {
-          setAgent(found);
-        }
+
+      if (data.success && data.agent) {
+        setAgent(data.agent);
+      } else {
+        // Clear agent if not found (will show "Agent Not Found" screen)
+        setAgent(null);
       }
 
       // Load missions
