@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { checkProofContent, getSecurityNotice } from '@/lib/security';
 import { authenticateAPI } from '@/lib/middleware';
+import { decideVerification } from '@/lib/verification';
 
 // Lazy initialization for Vercel build
 let supabase: SupabaseClient | null = null;
@@ -109,42 +110,65 @@ export async function POST(request: NextRequest) {
       })
       .eq('id', claim_id);
 
-    // Determine if this claim should be audited
-    const auditRate = getAuditRate(agent.trust_tier);
-    // 🛡️ SECURITY: Force audit if proof was flagged
-    const shouldAudit = proofCheck.flagged || Math.random() * 100 < auditRate;
+    // 1) Verification engine (if the mission declares criteria/method).
+    const verdict = await decideVerification({
+      method: mission.verification_method,
+      criteria: mission.acceptance_criteria,
+      taskDescription: `${mission.title || mission.target_name || mission.mission_type}. ${mission.instructions || ''}`,
+      proofUrl: proof_url,
+      proofData: proof_data,
+    });
 
-    let auditResult = null;
+    // 2) Decide the outcome (security flag always forces audit).
+    let outcome: 'verified' | 'rejected' | 'audit';
+    if (proofCheck.flagged) outcome = 'audit';
+    else if (verdict) outcome = verdict.decision;
+    else outcome = Math.random() * 100 < getAuditRate(agent.trust_tier) ? 'audit' : 'verified';
 
-    if (shouldAudit) {
-      // Create audit record (to be processed later)
+    let auditResult: Record<string, unknown>;
+
+    if (outcome === 'rejected') {
+      await db.from('claims').update({
+        status: 'rejected',
+        rejection_reason: verdict?.notes || 'failed verification',
+        updated_at: new Date().toISOString(),
+      }).eq('id', claim_id);
+      // Slash: the stake locked at claim time is forfeited (not returned).
+      const slashed = claim.stake_held || 0;
+      if (slashed > 0) {
+        await db.from('transactions').insert({
+          agent_id: auth.agentId, amount: -slashed, type: 'xp', action: 'stake_slash',
+          description: `Stake slashed — rejected claim #${claim_id}`, claim_id,
+        }).then(undefined, () => {});
+      }
+      return NextResponse.json({
+        success: true,
+        message: slashed > 0 ? `Proof rejected — ${slashed} XP stake slashed.` : 'Proof rejected by verification.',
+        audit: { audited: false, rejected: true, slashed, notes: verdict?.notes },
+      });
+    } else if (outcome === 'audit') {
       const { data: audit } = await db
         .from('audits')
         .insert({
           claim_id,
-          audit_type: proofCheck.flagged ? 'security_flag' : 'random',
+          audit_type: proofCheck.flagged ? 'security_flag' : 'verification',
           check_method: 'pending',
-          notes: proofCheck.flagged ? `Security flags: ${proofCheck.reasons.join(', ')}` : null,
+          notes: proofCheck.flagged ? `Security flags: ${proofCheck.reasons.join(', ')}` : (verdict?.notes || null),
         })
         .select()
         .single();
-
-      auditResult = {
-        audited: true,
-        audit_id: audit?.id,
-        security_flagged: proofCheck.flagged,
-      };
+      auditResult = { audited: true, audit_id: audit?.id, security_flagged: proofCheck.flagged, notes: verdict?.notes };
     } else {
-      // Auto-approve (no audit needed)
+      // verified — release reward
       await processApproval(db, claim, mission, agent);
-      auditResult = { audited: false, auto_approved: true };
+      auditResult = { audited: false, auto_approved: true, score: verdict?.score, notes: verdict?.notes };
     }
 
     return NextResponse.json({
       success: true,
-      message: shouldAudit
-        ? 'Proof submitted! Your claim is being audited.'
-        : 'Proof submitted and approved! XP awarded.',
+      message: outcome === 'audit'
+        ? 'Proof submitted! Your claim is under verification.'
+        : 'Proof submitted and approved! Reward released.',
       audit: auditResult,
     });
 
@@ -163,6 +187,7 @@ async function processApproval(
 ) {
   const xpReward = mission.xp_reward || 0;
   const usdReward = mission.usd_reward || 0;
+  const stakeReturn = claim.stake_held || 0; // collateral returned on success
 
   // Update claim as verified
   await db
@@ -177,30 +202,39 @@ async function processApproval(
     })
     .eq('id', claim.id);
 
-  // Award XP and USD to agent
+  // Re-read current balances so we never clobber USD on an XP-only mission.
+  const { data: fresh } = await db
+    .from('agents')
+    .select('xp, usd_balance, total_earned, missions_completed')
+    .eq('id', agent.id)
+    .single();
+
   await db
     .from('agents')
     .update({
-      xp: (agent.xp || 0) + xpReward,
-      usd_balance: (Number(agent.usd_balance) || 0) + usdReward,
-      total_earned: (Number(agent.total_earned) || 0) + usdReward,
-      missions_completed: (agent.missions_completed || 0) + 1,
+      xp: (fresh?.xp || 0) + xpReward + stakeReturn, // reward + returned stake
+      usd_balance: (Number(fresh?.usd_balance) || 0) + usdReward,
+      total_earned: (Number(fresh?.total_earned) || 0) + usdReward,
+      missions_completed: (fresh?.missions_completed || 0) + 1,
       updated_at: new Date().toISOString(),
-      last_active_at: new Date().toISOString(),
     })
     .eq('id', agent.id);
 
-  // Log XP transaction
-  await db
-    .from('xp_transactions')
-    .insert({
-      agent_id: agent.id,
-      amount: xpReward,
-      action: 'mission_complete',
-      description: `Completed mission claim #${claim.id}`,
-      mission_id: claim.mission_id,
-      claim_id: claim.id,
-    });
+  // Log XP transaction(s)
+  await db.from('xp_transactions').insert({
+    agent_id: agent.id,
+    amount: xpReward,
+    action: 'mission_complete',
+    description: `Completed mission claim #${claim.id}`,
+    mission_id: claim.mission_id,
+    claim_id: claim.id,
+  });
+  if (stakeReturn > 0) {
+    await db.from('transactions').insert({
+      agent_id: agent.id, amount: stakeReturn, type: 'xp', action: 'stake_return',
+      description: `Stake returned for verified claim #${claim.id}`, claim_id: claim.id,
+    }).then(undefined, () => {});
+  }
 
   // Update mission progress
   const newCount = mission.current_count + 1;

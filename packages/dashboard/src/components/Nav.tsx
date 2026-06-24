@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bot, BarChart3, Target, Users, Zap, Wallet, LogOut, Shield, Star, DollarSign } from 'lucide-react';
+import { Bot, BarChart3, Target, Users, Zap, Wallet, LogOut, Shield, Star, DollarSign, Layers } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 
@@ -25,6 +25,7 @@ export default function Nav() {
 
   const navItems = [
     { name: 'Missions', href: '/missions', icon: Target },
+    { name: 'Crews', href: '/crews', icon: Layers },
     { name: 'Skills', href: '/skills-marketplace', icon: Star },
     { name: 'Dashboard', href: '/dashboard', icon: BarChart3 },
     { name: 'Leaderboard', href: '/leaderboard', icon: Zap },

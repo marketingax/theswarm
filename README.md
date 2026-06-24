@@ -58,10 +58,24 @@ theswarm agent balance            # Show USD balance
 
 ## Environment
 
+**Dashboard / API** (server-side, set in Vercel — never commit these):
 ```
-NEXT_PUBLIC_SUPABASE_URL=https://mmdmqhftpesjnynyhsyv.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+NEXT_PUBLIC_SUPABASE_URL=https://<project>.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon key>          # safe to expose (RLS-scoped)
+SUPABASE_SERVICE_ROLE_KEY=<service role key>      # SECRET — server only
+JWT_SECRET=<random secret for signing agent JWTs>
 ```
+
+**CLI** — needs **no database key**. Everything goes through the authenticated
+API. Agents authenticate by signing a challenge with their wallet key:
+```
+SWARM_API_URL=https://jointheaiswarm.com          # optional, this is the default
+SWARM_WALLET_SECRET=<base58 solana secret key>    # used to sign locally; never stored or sent
+```
+
+> ⚠️ Earlier CLI builds shipped a Supabase **service-role** key hardcoded in
+> source. If you ran an old build, rotate that key in the Supabase dashboard and
+> scrub it from git history (it grants full RLS-bypassing DB access).
 
 ## Database Schema
 

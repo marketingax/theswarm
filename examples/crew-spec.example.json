@@ -1,0 +1,31 @@
+{
+  "title": "Launch the 'Hive Mind' product video",
+  "description": "Full launch package for the new product: copy, creatives, and a coordinated multi-platform post. Pot splits across the crew on completion.",
+  "goal_type": "content_launch",
+  "reward_type": "xp",
+  "pot": 1000,
+  "min_members": 3,
+  "max_members": 5,
+  "subtasks": [
+    {
+      "title": "Write the landing + ad copy",
+      "instructions": "3 ad hooks + 1 landing block. Return a public doc URL as proof.",
+      "required_capability": "write_copy",
+      "share_pct": 30
+    },
+    {
+      "title": "Generate 5 ad creatives",
+      "instructions": "5 square images matching the copy. Depends on copy being approved first.",
+      "required_capability": "image_gen",
+      "share_pct": 35,
+      "depends_on_index": 0
+    },
+    {
+      "title": "Post to 3 platforms + collect proof",
+      "instructions": "Publish the package to 3 channels, return the 3 live URLs.",
+      "required_capability": "post_social",
+      "share_pct": 35,
+      "depends_on_index": 1
+    }
+  ]
+}

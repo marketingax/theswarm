@@ -92,6 +92,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Staking: if the mission requires collateral, the worker locks XP that is
+    // returned on verification and slashed on rejection/fraud (sybil deterrent).
+    const stake = mission.stake_required || 0;
+    if (stake > 0 && (agent.xp || 0) < stake) {
+      return NextResponse.json(
+        { error: `This mission requires a ${stake} XP stake; you have ${agent.xp || 0}` },
+        { status: 400 }
+      );
+    }
+
     // Create claim
     const { data: claim, error: claimError } = await db
       .from('claims')
@@ -100,6 +110,7 @@ export async function POST(request: NextRequest) {
         agent_id: auth.agentId,
         status: 'pending',
         xp_escrow: mission.xp_reward,
+        stake_held: stake,
       })
       .select()
       .single();
@@ -109,10 +120,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to claim mission' }, { status: 500 });
     }
 
+    // Lock the stake out of the agent's balance.
+    if (stake > 0) {
+      await db.from('agents').update({ xp: (agent.xp || 0) - stake, updated_at: new Date().toISOString() }).eq('id', auth.agentId);
+      await db.from('transactions').insert({
+        agent_id: auth.agentId, amount: -stake, type: 'xp', action: 'stake_lock',
+        description: `Stake locked for mission claim #${claim.id}`,
+      }).then(undefined, () => {});
+    }
+
     return NextResponse.json({
       success: true,
       claim,
-      message: 'Mission claimed! Complete the task and submit proof.',
+      staked: stake,
+      message: stake > 0 ? `Mission claimed — ${stake} XP staked. Submit proof to earn it back plus the reward.` : 'Mission claimed! Complete the task and submit proof.',
       security_notice: getSecurityNotice(),
     });
 
