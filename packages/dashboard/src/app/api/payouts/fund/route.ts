@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+// Lazy init — see payouts/route.ts. Avoids build-time createClient crash.
+let supabase: SupabaseClient | null = null;
+function getSupabase(): SupabaseClient {
+    if (!supabase) {
+        supabase = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY)!
+        );
+    }
+    return supabase;
+}
 
 export async function POST(request: NextRequest) {
     try {
@@ -16,7 +23,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Get current balance
-        const { data: agent, error: fetchError } = await supabase
+        const { data: agent, error: fetchError } = await getSupabase()
             .from('agents')
             .select('usd_balance')
             .eq('wallet_address', wallet)
@@ -27,7 +34,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Update balance
-        const { error: updateError } = await supabase
+        const { error: updateError } = await getSupabase()
             .from('agents')
             .update({
                 usd_balance: (Number(agent.usd_balance) || 0) + Number(amount)
