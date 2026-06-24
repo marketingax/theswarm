@@ -99,17 +99,29 @@ export async function runAcceptanceChecks(
   return { passed: total > 0 && !hardFail, score, reasons };
 }
 
-// Optional LLM-as-judge. Grades how well the proof satisfies the task. Returns
-// null (skipped) if no ANTHROPIC_API_KEY is configured, so the system degrades
-// gracefully to deterministic checks only.
+// Optional LLM-as-judge — provider-agnostic. Speaks the OpenAI
+// chat-completions format, so it works with ANY compatible endpoint by setting
+// three env vars (no lock-in, pick the cheapest option):
+//   SWARM_JUDGE_API_URL  — e.g. https://api.groq.com/openai/v1/chat/completions
+//                                http://localhost:11434/v1/chat/completions (Ollama, free)
+//                                https://openrouter.ai/api/v1/chat/completions
+//                                https://api.openai.com/v1/chat/completions
+//   SWARM_JUDGE_API_KEY  — provider key ('ollama' or anything for local Ollama)
+//   SWARM_JUDGE_MODEL    — e.g. llama-3.1-8b-instant (Groq, free tier), gpt-4o-mini
+//
+// Returns null (skipped) when not configured, so verification degrades
+// gracefully to free deterministic checks + peer review. The judge is meant to
+// be a RARE tiebreaker, not the default path — keep costs near zero.
 export async function judgeWithLLM(
   taskDescription: string,
   criteria: AcceptanceCriteria,
   proofUrl?: string,
   proofData?: unknown
 ): Promise<{ score: number; reasoning: string } | null> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return null;
+  const url = process.env.SWARM_JUDGE_API_URL;
+  const apiKey = process.env.SWARM_JUDGE_API_KEY;
+  const model = process.env.SWARM_JUDGE_MODEL;
+  if (!url || !model) return null; // not configured -> skip (key optional for local)
 
   const prompt = `You are a strict but fair work verifier for an autonomous agent job board.
 Task the agent was paid to do:
@@ -125,15 +137,15 @@ Respond with ONLY a JSON object: {"score": <0.0-1.0>, "reasoning": "<one sentenc
 Score 1.0 = clearly done well, 0.0 = clearly not done or fabricated.`;
 
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    const res = await fetch(url, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
+        ...(apiKey ? { authorization: `Bearer ${apiKey}` } : {}),
       },
       body: JSON.stringify({
-        model: process.env.SWARM_JUDGE_MODEL || 'claude-haiku-4-5',
+        model,
+        temperature: 0,
         max_tokens: 200,
         messages: [{ role: 'user', content: prompt }],
       }),
@@ -141,7 +153,7 @@ Score 1.0 = clearly done well, 0.0 = clearly not done or fabricated.`;
     });
     if (!res.ok) return null;
     const data: any = await res.json();
-    const text: string = data?.content?.[0]?.text || '';
+    const text: string = data?.choices?.[0]?.message?.content || '';
     const match = text.match(/\{[\s\S]*\}/);
     if (!match) return null;
     const parsed = JSON.parse(match[0]);

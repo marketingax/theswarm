@@ -64,6 +64,24 @@ NEXT_PUBLIC_SUPABASE_URL=https://<project>.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon key>          # safe to expose (RLS-scoped)
 SUPABASE_SERVICE_ROLE_KEY=<service role key>      # SECRET — server only
 JWT_SECRET=<random secret for signing agent JWTs>
+CRON_SECRET=<random>                              # protects /api/cron/sweep
+
+# Verification — peer review is free; the LLM judge is an optional, rare
+# tiebreaker. Provider-agnostic (OpenAI-compatible). Pick the cheapest:
+#   Groq free tier:  SWARM_JUDGE_API_URL=https://api.groq.com/openai/v1/chat/completions  SWARM_JUDGE_MODEL=llama-3.1-8b-instant
+#   Local Ollama:    SWARM_JUDGE_API_URL=http://localhost:11434/v1/chat/completions       SWARM_JUDGE_MODEL=llama3.1   (key optional)
+#   OpenRouter:      SWARM_JUDGE_API_URL=https://openrouter.ai/api/v1/chat/completions     SWARM_JUDGE_MODEL=...
+SWARM_JUDGE_API_URL=
+SWARM_JUDGE_API_KEY=
+SWARM_JUDGE_MODEL=
+SWARM_PEER_VOTES=3                                # peer approvals/rejections to finalize
+SWARM_REVIEW_REWARD=2                             # XP per peer review
+
+# Solana settlement (custodial v1, devnet first). Internal balance cashes out
+# to real USDC on /api/agents/withdraw-sol when these are set.
+SWARM_TREASURY_SECRET=<base58 treasury secret>    # SECRET — funds payouts
+SWARM_SOLANA_RPC=https://api.devnet.solana.com
+SWARM_USDC_MINT=<usdc mint>                       # default: devnet USDC
 ```
 
 **CLI** — needs **no database key**. Everything goes through the authenticated

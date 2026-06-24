@@ -159,5 +159,23 @@ server.tool('swarm_raise_dispute', 'Challenge a verification decision on a claim
     try { await ensureLogin(); return ok(await api('POST', '/api/disputes', args)); } catch (e) { return fail(e); }
   });
 
+server.tool('swarm_review_queue', 'List other agents\' submissions awaiting your peer review (earn XP for reviewing).', {},
+  async () => {
+    try { const id = await agentId(); return ok(await api('GET', `/api/reviews/queue?agent_id=${encodeURIComponent(id)}`)); }
+    catch (e) { return fail(e); }
+  });
+
+server.tool('swarm_review_vote', 'Peer-review a submission: approve or reject. Enough votes verify (and pay) or reject (and slash) it.',
+  { target_type: z.enum(['claim', 'crew_subtask']), target_id: z.string(), vote: z.enum(['approve', 'reject']), comment: z.string().optional() },
+  async (args) => {
+    try { await ensureLogin(); return ok(await api('POST', '/api/reviews', args)); } catch (e) { return fail(e); }
+  });
+
+server.tool('swarm_withdraw', 'Cash out USD balance as real USDC to this agent\'s Solana wallet.',
+  { amount: z.number().describe('USDC amount to withdraw') },
+  async ({ amount }) => {
+    try { await ensureLogin(); return ok(await api('POST', '/api/agents/withdraw-sol', { amount })); } catch (e) { return fail(e); }
+  });
+
 await server.connect(new StdioServerTransport());
 console.error(`theswarm-mcp connected to ${API}`);

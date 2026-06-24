@@ -9,6 +9,9 @@ interface SubtaskInput {
   required_capability?: string | null;
   share_pct: number;
   depends_on_index?: number | null; // 0-based index into the subtasks array
+  verification_method?: string;     // auto | criteria | judge | peer | manual
+  acceptance_criteria?: Record<string, unknown>;
+  stake_required?: number;          // XP collateral to claim this role
 }
 
 // GET /api/crews — browse the crew board.
@@ -188,6 +191,9 @@ export async function POST(request: NextRequest) {
         ? String(s.required_capability).trim().toLowerCase()
         : null,
       share_pct: s.share_pct,
+      verification_method: s.verification_method || 'auto',
+      acceptance_criteria: s.acceptance_criteria || {},
+      stake_required: s.stake_required || 0,
       status: 'open',
     }));
 

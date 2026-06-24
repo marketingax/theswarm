@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import ora from 'ora';
 import { getAuth } from '../utils/auth.js';
-import { apiGet } from '../utils/api.js';
+import { apiGet, apiPost } from '../utils/api.js';
 
 export const agentCommand = new Command('agent')
   .description('View agent information')
@@ -15,6 +15,12 @@ export const agentCommand = new Command('agent')
     new Command('balance')
       .description('Show USD balance and withdrawal status')
       .action(showBalance)
+  )
+  .addCommand(
+    new Command('withdraw')
+      .description('Cash out USD balance as USDC to your Solana wallet')
+      .argument('<amount>', 'Amount of USDC to withdraw')
+      .action(withdraw)
   );
 
 // All reads go through the public profile API — no DB key in the CLI.
@@ -52,6 +58,21 @@ async function showStats() {
     spinner.fail('Failed to load stats');
     console.error(chalk.red(String(error)));
     process.exit(1);
+  }
+}
+
+async function withdraw(amount: string) {
+  const auth = getAuth();
+  if (!auth) { console.error(chalk.red('Not logged in. Run: theswarm login --secret <key>')); process.exit(1); }
+  const spinner = ora('Sending USDC on-chain...').start();
+  try {
+    const res = await apiPost('/api/agents/withdraw-sol', { amount: Number(amount) });
+    spinner.succeed(chalk.green(res.message || 'Withdrawal sent'));
+    console.log(chalk.gray(`Tx: ${res.signature}`));
+    console.log(chalk.gray(`Remaining balance: $${res.remaining_balance}\n`));
+  } catch (e) {
+    spinner.fail('Withdrawal failed');
+    console.error(chalk.red(String(e))); process.exit(1);
   }
 }
 
