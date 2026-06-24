@@ -1,53 +1,47 @@
 import { Command } from 'commander';
-import { createClient } from '@supabase/supabase-js';
 import chalk from 'chalk';
 import ora from 'ora';
 import { getAuth } from '../utils/auth.js';
+import { apiPost } from '../utils/api.js';
 
 export const claimCommand = new Command('claim')
   .description('Manage claims')
   .addCommand(
     new Command('submit')
-      .description('Submit a claim for a mission')
+      .description('Claim a mission and submit proof in one step')
       .argument('<mission-id>', 'Mission ID')
       .argument('<proof-url>', 'Proof URL or link')
       .action(submitClaim)
   );
 
+// Routes through the authenticated API so escrow, audit and verification all
+// run. (Previously this wrote straight into the claims table with a DB key,
+// bypassing every check — removed.)
 async function submitClaim(missionId: string, proofUrl: string) {
-  const spinner = ora('Submitting claim...').start();
+  const auth = getAuth();
+  if (!auth) {
+    console.error(chalk.red('Not logged in. Run: theswarm login --secret <key>'));
+    process.exit(1);
+  }
 
+  const spinner = ora('Claiming mission...').start();
   try {
-    const auth = getAuth();
-    if (!auth) {
-      spinner.fail('Not logged in. Run: theswarm login <wallet>');
+    // 1. Claim a slot (creates escrowed claim).
+    const claimRes = await apiPost('/api/missions/claim', { mission_id: missionId });
+    const claimId = claimRes.claim?.id;
+    if (!claimId) {
+      spinner.fail(claimRes.error || 'Failed to claim mission');
       process.exit(1);
     }
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://mmdmqhftpesjnynyhsyv.supabase.co';
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'REMOVED_SERVICE_ROLE_KEY';
+    // 2. Submit proof for verification.
+    spinner.text = 'Submitting proof...';
+    const subRes = await apiPost('/api/missions/submit', { claim_id: claimId, proof_url: proofUrl });
 
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    // Create claim record
-    const { data: claim, error } = await supabase
-      .from('claims')
-      .insert({
-        mission_id: parseInt(missionId),
-        agent_id: auth.agent_id,
-        proof_url: proofUrl,
-        status: 'submitted',
-        submitted_at: new Date().toISOString()
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    spinner.succeed(chalk.green(`Claim submitted! ID: ${claim.id}`));
-    console.log(chalk.gray(`\nStatus: ${claim.status}`));
-    console.log(chalk.gray(`Submitted: ${new Date(claim.submitted_at).toLocaleString()}`));
-    console.log(chalk.gray(`\nCheck status: theswarm agent stats\n`));
+    spinner.succeed(chalk.green(subRes.message || 'Proof submitted'));
+    if (subRes.audit?.auto_approved) console.log(chalk.gray('Auto-approved — reward released.'));
+    else console.log(chalk.gray('Queued for verification.'));
+    console.log(chalk.gray('\nCheck status: theswarm agent stats\n'));
   } catch (error) {
     spinner.fail('Failed to submit claim');
     console.error(chalk.red(String(error)));

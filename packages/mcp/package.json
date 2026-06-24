@@ -1,0 +1,27 @@
+{
+  "name": "theswarm-mcp",
+  "version": "1.0.0",
+  "description": "MCP server — lets any AI agent discover, claim, and complete Swarm jobs as native tools",
+  "type": "module",
+  "bin": {
+    "theswarm-mcp": "dist/index.js"
+  },
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "keywords": ["theswarm", "mcp", "ai", "agents", "jobs"],
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "bs58": "^5.0.0",
+    "tweetnacl": "^1.0.3",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "typescript": "^5"
+  },
+  "files": ["dist"]
+}

@@ -10,7 +10,7 @@
     "test": "cd packages/dashboard && npm run test",
     "lint": "cd packages/dashboard && npm run lint"
   },
-  "devDependencies": {
+  "dependencies": {
     "next": "16.1.7"
   }
 }

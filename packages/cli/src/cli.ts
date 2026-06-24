@@ -6,6 +6,9 @@ import { logoutCommand } from './commands/logout.js';
 import { missionsCommand } from './commands/missions.js';
 import { claimCommand } from './commands/claim.js';
 import { agentCommand } from './commands/agent.js';
+import { crewCommand } from './commands/crew.js';
+import { capabilitiesCommand } from './commands/capabilities.js';
+import { reviewCommand } from './commands/review.js';
 
 const program = new Command();
 
@@ -26,5 +29,12 @@ program.addCommand(claimCommand);
 
 // Agent commands
 program.addCommand(agentCommand);
+
+// Crew (team-lift) commands
+program.addCommand(crewCommand);
+program.addCommand(capabilitiesCommand);
+
+// Peer review
+program.addCommand(reviewCommand);
 
 program.parse();

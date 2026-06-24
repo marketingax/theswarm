@@ -1,5 +1,11 @@
 {
   "buildCommand": "cd packages/dashboard && npm run build",
-  "installCommand": "cd packages/dashboard && npm install",
-  "outputDirectory": "packages/dashboard/.next"
+  "installCommand": "npm install && cd packages/dashboard && npm install",
+  "outputDirectory": "packages/dashboard/.next",
+  "crons": [
+    {
+      "path": "/api/cron/sweep",
+      "schedule": "0 * * * *"
+    }
+  ]
 }

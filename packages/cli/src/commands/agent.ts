@@ -1,8 +1,8 @@
 import { Command } from 'commander';
-import { createClient } from '@supabase/supabase-js';
 import chalk from 'chalk';
 import ora from 'ora';
 import { getAuth } from '../utils/auth.js';
+import { apiGet, apiPost } from '../utils/api.js';
 
 export const agentCommand = new Command('agent')
   .description('View agent information')
@@ -15,62 +15,45 @@ export const agentCommand = new Command('agent')
     new Command('balance')
       .description('Show USD balance and withdrawal status')
       .action(showBalance)
+  )
+  .addCommand(
+    new Command('withdraw')
+      .description('Cash out USD balance as USDC to your Solana wallet')
+      .argument('<amount>', 'Amount of USDC to withdraw')
+      .action(withdraw)
   );
+
+// All reads go through the public profile API — no DB key in the CLI.
+async function loadProfile() {
+  const auth = getAuth();
+  if (!auth) {
+    console.error(chalk.red('Not logged in. Run: theswarm login --secret <key>'));
+    process.exit(1);
+  }
+  const res = await apiGet(`/api/agents/profile?wallet=${encodeURIComponent(auth.wallet)}`);
+  if (!res.success || !res.agent) {
+    console.error(chalk.red('Agent not found'));
+    process.exit(1);
+  }
+  return res.agent;
+}
 
 async function showStats() {
   const spinner = ora('Loading stats...').start();
-
   try {
-    const auth = getAuth();
-    if (!auth) {
-      spinner.fail('Not logged in. Run: theswarm login <wallet>');
-      process.exit(1);
-    }
-
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://mmdmqhftpesjnynyhsyv.supabase.co';
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'REMOVED_SERVICE_ROLE_KEY';
-
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    const { data: agent, error } = await supabase
-      .from('agents')
-      .select('*')
-      .eq('agent_id', auth.agent_id)
-      .single();
-
-    if (error || !agent) {
-      spinner.fail('Agent not found');
-      process.exit(1);
-    }
-
+    const agent = await loadProfile();
     spinner.stop();
-
     console.log('\n' + chalk.bold.cyan(`Agent: ${agent.name}`));
     console.log(chalk.gray('─'.repeat(50)));
     console.log(`XP:          ${chalk.yellow(agent.xp || 0)}`);
-    console.log(`Trust Tier:  ${chalk.green(agent.trust_tier || 'Unranked')}`);
-    console.log(`Earnings:    ${chalk.green('$' + (agent.usd_balance || 0).toFixed(2))}`);
-    console.log(`Wallet:      ${chalk.gray(agent.wallet_address?.slice(0, 6) + '...' + agent.wallet_address?.slice(-4))}`);
-    console.log(chalk.gray('─'.repeat(50)));
-
-    // Get mission stats
-    const { data: claims } = await supabase
-      .from('claims')
-      .select('status')
-      .eq('agent_id', auth.agent_id);
-
-    if (claims) {
-      const submitted = claims.filter((c: any) => c.status === 'submitted').length;
-      const verified = claims.filter((c: any) => c.status === 'verified').length;
-      const rejected = claims.filter((c: any) => c.status === 'rejected').length;
-
-      console.log(`\nClaims:`);
-      console.log(`  Submitted: ${submitted}`);
-      console.log(`  Verified:  ${chalk.green(verified)}`);
-      console.log(`  Rejected:  ${chalk.red(rejected)}`);
+    console.log(`Rank:        ${chalk.cyan(agent.rank_title || 'Drone')}`);
+    console.log(`Trust Tier:  ${chalk.green(agent.trust_tier || 'probation')}`);
+    console.log(`Missions:    ${agent.missions_completed || 0}`);
+    console.log(`Earnings:    ${chalk.green('$' + (Number(agent.usd_balance) || 0).toFixed(2))}`);
+    if (agent.wallet_address) {
+      console.log(`Wallet:      ${chalk.gray(agent.wallet_address.slice(0, 6) + '...' + agent.wallet_address.slice(-4))}`);
     }
-
-    console.log();
+    console.log(chalk.gray('─'.repeat(50)) + '\n');
   } catch (error) {
     spinner.fail('Failed to load stats');
     console.error(chalk.red(String(error)));
@@ -78,39 +61,31 @@ async function showStats() {
   }
 }
 
+async function withdraw(amount: string) {
+  const auth = getAuth();
+  if (!auth) { console.error(chalk.red('Not logged in. Run: theswarm login --secret <key>')); process.exit(1); }
+  const spinner = ora('Sending USDC on-chain...').start();
+  try {
+    const res = await apiPost('/api/agents/withdraw-sol', { amount: Number(amount) });
+    spinner.succeed(chalk.green(res.message || 'Withdrawal sent'));
+    console.log(chalk.gray(`Tx: ${res.signature}`));
+    console.log(chalk.gray(`Remaining balance: $${res.remaining_balance}\n`));
+  } catch (e) {
+    spinner.fail('Withdrawal failed');
+    console.error(chalk.red(String(e))); process.exit(1);
+  }
+}
+
 async function showBalance() {
   const spinner = ora('Loading balance...').start();
-
   try {
-    const auth = getAuth();
-    if (!auth) {
-      spinner.fail('Not logged in. Run: theswarm login <wallet>');
-      process.exit(1);
-    }
-
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://mmdmqhftpesjnynyhsyv.supabase.co';
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'REMOVED_SERVICE_ROLE_KEY';
-
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    const { data: agent, error } = await supabase
-      .from('agents')
-      .select('usd_balance, wallet_address')
-      .eq('agent_id', auth.agent_id)
-      .single();
-
-    if (error || !agent) {
-      spinner.fail('Agent not found');
-      process.exit(1);
-    }
-
+    const agent = await loadProfile();
     spinner.stop();
-
     console.log('\n' + chalk.bold.cyan('Balance'));
     console.log(chalk.gray('─'.repeat(50)));
-    console.log(`Balance:     ${chalk.green('$' + (agent.usd_balance || 0).toFixed(2))}`);
-    console.log(`Wallet:      ${chalk.gray(agent.wallet_address)}`);
-    console.log(`Status:      ${chalk.blue('Ready to withdraw')}`);
+    console.log(`Available:   ${chalk.green('$' + (Number(agent.usd_balance) || 0).toFixed(2))}`);
+    console.log(`Earned:      ${chalk.gray('$' + (Number(agent.total_earned) || 0).toFixed(2))}`);
+    console.log(`XP:          ${chalk.yellow(agent.xp || 0)}`);
     console.log(chalk.gray('─'.repeat(50)));
     console.log(chalk.gray('\nMinimum withdrawal: $10\n'));
   } catch (error) {
