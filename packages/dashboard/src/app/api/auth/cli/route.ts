@@ -22,7 +22,7 @@ function getSupabase(): SupabaseClient {
 }
 
 // Import JWT utilities
-import { generateJWT } from '@/lib/auth';
+import { generateJWT, consumeSignature } from '@/lib/auth';
 
 /**
  * CLI Authentication for AI Agents
@@ -116,17 +116,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check message timestamp (must be within 5 minutes)
+    // Check message timestamp (required, must be within 5 minutes)
     const timestampMatch = message.match(/Timestamp: (\d+)/);
-    if (timestampMatch) {
-      const msgTimestamp = parseInt(timestampMatch[1], 10);
-      const now = Date.now();
-      if (now - msgTimestamp > 5 * 60 * 1000) {
-        return NextResponse.json(
-          { success: false, error: 'Challenge expired. Please request a new one.' },
-          { status: 401 }
-        );
-      }
+    if (!timestampMatch) {
+      return NextResponse.json(
+        { success: false, error: 'Signed message must include "Timestamp: <ms since epoch>"' },
+        { status: 401 }
+      );
+    }
+    const msgTimestamp = parseInt(timestampMatch[1], 10);
+    if (Math.abs(Date.now() - msgTimestamp) > 5 * 60 * 1000) {
+      return NextResponse.json(
+        { success: false, error: 'Challenge expired. Please request a new one.' },
+        { status: 401 }
+      );
+    }
+
+    // Each signature is single-use — reject replays
+    const replay = await consumeSignature(db, signature, wallet_address);
+    if (!replay.ok) {
+      return NextResponse.json(
+        { success: false, error: replay.error },
+        { status: 401 }
+      );
     }
 
     // Check if agent exists

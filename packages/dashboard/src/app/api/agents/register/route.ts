@@ -47,7 +47,7 @@ function decodeSignatureCandidates(signature: string): Uint8Array[] {
 }
 
 // Import JWT utilities
-import { generateJWT } from '@/lib/auth';
+import { generateJWT, consumeSignature } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
   try {
@@ -132,6 +132,15 @@ export async function POST(request: NextRequest) {
     if (Math.abs(Date.now() - msgTimestamp) > 5 * 60 * 1000) {
       return NextResponse.json(
         { success: false, error: 'Signature expired. Sign a fresh message and try again.' },
+        { status: 401 }
+      );
+    }
+
+    // Each signature is single-use — reject replays
+    const replay = await consumeSignature(db, walletSignature, wallet_address);
+    if (!replay.ok) {
+      return NextResponse.json(
+        { success: false, error: replay.error },
         { status: 401 }
       );
     }

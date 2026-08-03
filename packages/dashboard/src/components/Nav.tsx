@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Bot, BarChart3, Target, Users, Zap, Wallet, LogOut, Shield, Star, DollarSign, Layers } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import bs58 from 'bs58';
 
 export default function Nav() {
   const [isOpen, setIsOpen] = useState(false);
@@ -64,6 +65,28 @@ export default function Nav() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ wallet_address: address })
       });
+
+      // Establish a real server session (signed challenge -> session cookie).
+      // Admin and agent APIs require this; localStorage alone is display-only.
+      try {
+        const challengeRes = await fetch(`/api/auth/cli?wallet=${encodeURIComponent(address)}`);
+        const challengeData = await challengeRes.json();
+        if (challengeData.success && window.solana.signMessage) {
+          const encoded = new TextEncoder().encode(challengeData.challenge);
+          const { signature } = await window.solana.signMessage(encoded, 'utf8');
+          await fetch('/api/auth/cli', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              wallet_address: address,
+              signature: bs58.encode(signature),
+              message: challengeData.challenge
+            })
+          });
+        }
+      } catch (signErr) {
+        console.error('Session sign-in failed; authenticated APIs will reject requests:', signErr);
+      }
 
       window.location.href = address === ADMIN_WALLET ? '/admin' : '/dashboard';
     } catch (err) {

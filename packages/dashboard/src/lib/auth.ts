@@ -2,9 +2,10 @@
 // JWT authentication utilities for The Swarm
 
 import jwt from 'jsonwebtoken';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import nacl from 'tweetnacl';
 import bs58 from 'bs58';
+import { createHash } from 'crypto';
 
 const JWT_EXPIRY = '7d'; // 7 days
 
@@ -54,6 +55,42 @@ export function verifyJWT(token: string): { valid: boolean; payload?: JwtPayload
   }
 }
 
+// Replay protection: each verified signature may be used exactly once.
+// The signature's hash is inserted into used_signatures; a unique violation
+// means it was already consumed -> reject. Fails closed on any DB error.
+export async function consumeSignature(
+  db: SupabaseClient,
+  signature: string,
+  walletAddress: string
+): Promise<{ ok: boolean; error?: string }> {
+  const sigHash = createHash('sha256').update(signature).digest('hex');
+  const now = Date.now();
+
+  const { error } = await db.from('used_signatures').insert({
+    sig_hash: sigHash,
+    wallet_address: walletAddress,
+    used_at: new Date(now).toISOString(),
+    // signatures are valid for 5 minutes; keep the record for 10 to be safe
+    expires_at: new Date(now + 10 * 60 * 1000).toISOString(),
+  });
+
+  if (error) {
+    if (error.code === '23505') {
+      return { ok: false, error: 'Signature already used. Sign a fresh challenge.' };
+    }
+    console.error('Signature replay check failed:', error);
+    return { ok: false, error: 'Signature replay check failed' };
+  }
+
+  // Opportunistic cleanup of expired rows; failure here is harmless
+  db.from('used_signatures')
+    .delete()
+    .lt('expires_at', new Date(now).toISOString())
+    .then(() => {}, () => {});
+
+  return { ok: true };
+}
+
 // Authenticate with wallet signature
 export async function authenticateWithSignature(
   walletAddress: string,
@@ -72,22 +109,27 @@ export async function authenticateWithSignature(
       return { success: false, error: 'Invalid signature' };
     }
     
-    // Check message timestamp (must be within 5 minutes)
+    // Check message timestamp (required, must be within 5 minutes)
     const timestampMatch = message.match(/Timestamp: (\d+)/);
-    if (timestampMatch) {
-      const msgTimestamp = parseInt(timestampMatch[1], 10);
-      const now = Date.now();
-      if (now - msgTimestamp > 5 * 60 * 1000) {
-        return { success: false, error: 'Signature expired' };
-      }
+    if (!timestampMatch) {
+      return { success: false, error: 'Signed message must include "Timestamp: <ms since epoch>"' };
     }
-    
-    // Get agent from database
+    const msgTimestamp = parseInt(timestampMatch[1], 10);
+    if (Math.abs(Date.now() - msgTimestamp) > 5 * 60 * 1000) {
+      return { success: false, error: 'Signature expired' };
+    }
+
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
-    
+
+    // Each signature is single-use — reject replays
+    const replay = await consumeSignature(supabase, signature, walletAddress);
+    if (!replay.ok) {
+      return { success: false, error: replay.error };
+    }
+
     const { data: agent, error } = await supabase
       .from('agents')
       .select('id, name, trust_tier')
