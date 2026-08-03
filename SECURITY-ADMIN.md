@@ -36,3 +36,7 @@ vercel --prod
 Then open the site, click Connect Wallet → Phantom, and approve the signature prompt. The server verifies the signature, sees your address on the allowlist, and your session gets admin. Multiple admins: comma-separate addresses in `ADMIN_WALLETS`.
 
 Do NOT put a placeholder value in `ADMIN_WALLETS`. Never hardcode wallet addresses in code again — the allowlist lives only in the environment.
+
+## Database password rotation (2026-08-03)
+
+The direct Postgres password that was hardcoded in `run-migration.js` / `run-trust-migration.js` (removed in this commit, but still present in git history) was **rotated on 2026-08-03 and no longer works**. The current password is stored locally outside version control and is not used by the application (the app connects via supabase-js with URL + keys only). If direct Postgres access is ever needed, rotate again via the Supabase dashboard rather than committing a connection string.
