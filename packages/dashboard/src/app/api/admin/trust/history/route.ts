@@ -1,6 +1,6 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requireAdmin } from '@/lib/adminAuth';
 
 let supabase: SupabaseClient | null = null;
 
@@ -20,28 +20,11 @@ function getSupabase(): SupabaseClient {
 
 export async function GET(request: NextRequest) {
   try {
-    const auth = await requireAuth(request);
-    if (!auth.authenticated || !auth.agentId) {
-      return NextResponse.json(
-        { success: false, error: 'Authentication required' },
-        { status: 401 }
-      );
-    }
+    // Admin-only: signature-backed JWT + ADMIN_WALLETS env allowlist.
+    const admin = await requireAdmin(request);
+    if (!admin.authorized) return admin.response;
 
     const db = getSupabase();
-
-    const { data: actor } = await db
-      .from('agents')
-      .select('is_admin')
-      .eq('id', auth.agentId)
-      .single();
-
-    if (actor?.is_admin !== true) {
-      return NextResponse.json(
-        { success: false, error: 'Admin access required' },
-        { status: 403 }
-      );
-    }
 
     const { data: history, error } = await db
       .from('trust_history')

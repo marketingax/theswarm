@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { authenticateAPI } from '@/lib/middleware';
+import { requireAdmin } from '@/lib/adminAuth';
 
 let supabase: SupabaseClient | null = null;
 function getSupabase(): SupabaseClient {
@@ -20,17 +20,9 @@ export async function POST(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    // Authenticate as admin
-    const auth = await authenticateAPI(request, true);
-    if (!auth.authenticated || !auth.agentId) {
-      return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
-      );
-    }
-
-    // For MVP: Assume any authenticated user can reject
-    // In production: Check admin role
+    // Authenticate as admin (signature-backed JWT + ADMIN_WALLETS env allowlist)
+    const auth = await requireAdmin(request);
+    if (!auth.authorized) return auth.response;
 
     const { id: proofId } = await context.params;
     if (!proofId) {
@@ -68,7 +60,7 @@ export async function POST(
       .from('outreach_proofs')
       .update({
         manual_verified: false,
-        manual_verified_by: auth.agentId,
+        manual_verified_by: auth.agentId || auth.wallet,
         rejection_reason: reason,
         notes: reason
       })

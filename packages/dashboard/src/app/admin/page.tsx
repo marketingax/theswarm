@@ -49,18 +49,22 @@ export default function AdminDashboard() {
   const [usdMissions, setUsdMissions] = useState<UsdMission[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const ADMIN_WALLET = 'Fu7QnuVuGu1piks6FYeqp7GdP4P8MWjMeAeBbG5XYdUD';
-
   useEffect(() => {
-    const wallet = localStorage.getItem('connectedWallet');
-    setWalletAddress(wallet);
-    setIsAdmin(wallet === ADMIN_WALLET);
-    
-    if (wallet === ADMIN_WALLET) {
-      loadAdminDashboard();
-    } else {
-      setLoading(false);
-    }
+    // Admin status comes from the server-side session (signature-authed JWT +
+    // ADMIN_WALLETS env allowlist) — never from a client-side constant.
+    fetch('/api/auth/session')
+      .then((res) => res.json())
+      .then((data) => {
+        setWalletAddress(data.wallet || null);
+        const admin = data.isAdmin === true;
+        setIsAdmin(admin);
+        if (admin) {
+          loadAdminDashboard();
+        } else {
+          setLoading(false);
+        }
+      })
+      .catch(() => setLoading(false));
   }, []);
 
   const loadAdminDashboard = async () => {

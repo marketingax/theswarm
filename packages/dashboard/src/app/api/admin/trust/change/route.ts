@@ -1,6 +1,6 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requireAdmin } from '@/lib/adminAuth';
 
 let supabase: SupabaseClient | null = null;
 
@@ -22,30 +22,12 @@ const VALID_TIERS = ['trusted', 'normal', 'probation', 'blacklist', 'banned'];
 
 export async function POST(request: NextRequest) {
   try {
-    // Authenticate via Bearer token or session cookie
-    const auth = await requireAuth(request);
-    if (!auth.authenticated || !auth.agentId) {
-      return NextResponse.json(
-        { success: false, error: 'Authentication required' },
-        { status: 401 }
-      );
-    }
+    // Trust tier changes are admin-only: signature-backed JWT + ADMIN_WALLETS
+    // env allowlist (no hardcoded wallets, no client-decided admin).
+    const admin = await requireAdmin(request);
+    if (!admin.authorized) return admin.response;
 
     const db = getSupabase();
-
-    // Trust tier changes are admin-only
-    const { data: actor } = await db
-      .from('agents')
-      .select('is_admin')
-      .eq('id', auth.agentId)
-      .single();
-
-    if (actor?.is_admin !== true) {
-      return NextResponse.json(
-        { success: false, error: 'Admin access required' },
-        { status: 403 }
-      );
-    }
 
     const { agent_id, new_tier, reason } = await request.json();
 
@@ -96,7 +78,7 @@ export async function POST(request: NextRequest) {
     // Audit log — every trust change records actor, old/new tier, reason
     const { error: auditError } = await db.from('trust_history').insert({
       agent_id,
-      changed_by: auth.agentId,
+      changed_by: admin.agentId || admin.wallet,
       old_tier: target.trust_tier || 'normal',
       new_tier,
       reason,

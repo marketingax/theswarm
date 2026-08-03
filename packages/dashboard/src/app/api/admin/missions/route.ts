@@ -1,5 +1,6 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAdmin } from '@/lib/adminAuth';
 
 let supabase: SupabaseClient | null = null;
 
@@ -19,6 +20,9 @@ function getSupabase(): SupabaseClient {
 
 export async function GET(request: NextRequest) {
   try {
+    const admin = await requireAdmin(request);
+    if (!admin.authorized) return admin.response;
+
     const db = getSupabase();
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
