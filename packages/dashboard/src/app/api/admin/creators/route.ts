@@ -1,6 +1,6 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
-import jwt from 'jsonwebtoken';
+import { requireAdmin } from '@/lib/adminAuth';
 
 let supabase: SupabaseClient | null = null;
 
@@ -18,60 +18,13 @@ function getSupabase(): SupabaseClient {
   return supabase;
 }
 
-function verifyAdminAuth(request: NextRequest): string | null {
-  const authHeader = request.headers.get('authorization');
-  
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return null;
-  }
-  
-  const token = authHeader.substring(7);
-  const secret = process.env.JWT_SECRET;
-  
-  if (!secret) {
-    console.error('JWT_SECRET not configured');
-    return null;
-  }
-  
-  try {
-    const decoded = jwt.verify(token, secret) as any;
-    return decoded.sub || decoded.agent_id;
-  } catch (error) {
-    return null;
-  }
-}
-
-async function isAdmin(db: SupabaseClient, agentId: string): Promise<boolean> {
-  const { data: admin } = await db
-    .from('agents')
-    .select('is_admin')
-    .eq('id', agentId)
-    .single();
-  
-  return admin?.is_admin === true;
-}
-
 export async function GET(request: NextRequest) {
   try {
-    // Verify admin authentication
-    const adminId = verifyAdminAuth(request);
-    if (!adminId) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
+    // Verify admin (signature-backed JWT + ADMIN_WALLETS env allowlist)
+    const admin = await requireAdmin(request);
+    if (!admin.authorized) return admin.response;
 
     const db = getSupabase();
-    
-    // Check if requester is admin
-    const adminCheck = await isAdmin(db, adminId);
-    if (!adminCheck) {
-      return NextResponse.json(
-        { success: false, error: 'Admin access required' },
-        { status: 403 }
-      );
-    }
 
     // Get status filter from query params
     const { searchParams } = new URL(request.url);

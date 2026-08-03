@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Bot, BarChart3, Target, Users, Zap, Wallet, LogOut, Shield, Star, DollarSign, Layers } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import bs58 from 'bs58';
 
 export default function Nav() {
   const [isOpen, setIsOpen] = useState(false);
@@ -14,13 +15,21 @@ export default function Nav() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [mounted, setMounted] = useState(false);
 
-  const ADMIN_WALLET = 'Fu7QnuVuGu1piks6FYeqp7GdP4P8MWjMeAeBbG5XYdUD';
-
   useEffect(() => {
     setMounted(true);
     const storedWallet = localStorage.getItem('connectedWallet');
     setWalletAddress(storedWallet);
-    setIsAdmin(storedWallet === ADMIN_WALLET);
+    // Admin status is decided by the server (signature-authed session +
+    // ADMIN_WALLETS env allowlist) — never by a client-side constant.
+    fetch('/api/auth/session')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.authenticated && data.wallet) {
+          setWalletAddress(data.wallet);
+        }
+        setIsAdmin(data.isAdmin === true);
+      })
+      .catch(() => setIsAdmin(false));
   }, []);
 
   const navItems = [
@@ -52,20 +61,33 @@ export default function Nav() {
       const response = await window.solana.connect();
       const address = response.publicKey.toString();
 
-      // Store in localStorage
-      localStorage.setItem('connectedWallet', address);
-      setWalletAddress(address);
-      setIsAdmin(address === ADMIN_WALLET);
-      setShowWalletModal(false);
+      // Prove wallet ownership with a signature, then let the SERVER decide
+      // whether this wallet is an admin.
+      const message = `Sign in to The Swarm\n\nWallet: ${address}\nTimestamp: ${Date.now()}`;
+      const encodedMessage = new TextEncoder().encode(message);
+      const { signature } = await window.solana.signMessage(encodedMessage, 'utf8');
 
-      // Verify in backend
-      await fetch('/api/agents/verify-wallet', {
+      const res = await fetch('/api/auth/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ wallet_address: address })
+        body: JSON.stringify({
+          wallet_address: address,
+          signature: bs58.encode(signature),
+          message,
+        }),
       });
+      const data = await res.json();
 
-      window.location.href = address === ADMIN_WALLET ? '/admin' : '/dashboard';
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Wallet authentication failed');
+      }
+
+      localStorage.setItem('connectedWallet', address);
+      setWalletAddress(address);
+      setIsAdmin(data.isAdmin === true);
+      setShowWalletModal(false);
+
+      window.location.href = data.isAdmin === true ? '/admin' : '/dashboard';
     } catch (err) {
       console.error('Phantom connection failed:', err);
     } finally {
@@ -73,33 +95,15 @@ export default function Nav() {
     }
   };
 
-  const handleConnectWallet = async (walletAddr: string) => {
-    setLoading(true);
+  const handleDisconnect = async () => {
     try {
-      localStorage.setItem('connectedWallet', walletAddr);
-      setWalletAddress(walletAddr);
-      setIsAdmin(walletAddr === ADMIN_WALLET);
-      setShowWalletModal(false);
-
-      const res = await fetch('/api/agents/verify-wallet', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ wallet_address: walletAddr })
-      });
-
-      if (res.ok) {
-        window.location.href = walletAddr === ADMIN_WALLET ? '/admin' : '/dashboard';
-      }
-    } catch (err) {
-      console.error('Error connecting wallet:', err);
-    } finally {
-      setLoading(false);
+      await fetch('/api/auth/session', { method: 'DELETE' });
+    } catch {
+      // best-effort sign-out
     }
-  };
-
-  const handleDisconnect = () => {
     localStorage.removeItem('connectedWallet');
     setWalletAddress(null);
+    setIsAdmin(false);
     setShowWalletModal(false);
     window.location.href = '/';
   };
@@ -261,38 +265,6 @@ export default function Nav() {
                   </div>
                 </button>
 
-                <div className="relative py-2">
-                  <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-zinc-800"></div></div>
-                  <div className="relative flex justify-center text-[10px] uppercase"><span className="bg-zinc-900 px-4 text-zinc-600 font-bold tracking-widest">Experimental Bypass</span></div>
-                </div>
-
-                <div className="grid grid-cols-1 gap-3">
-                  {/* Admin Wallet Option */}
-                  <button
-                    onClick={() => handleConnectWallet('Fu7QnuVuGu1piks6FYeqp7GdP4P8MWjMeAeBbG5XYdUD')}
-                    disabled={loading}
-                    className={`p-4 rounded-xl border transition-all text-left ${walletAddress === 'Fu7QnuVuGu1piks6FYeqp7GdP4P8MWjMeAeBbG5XYdUD'
-                      ? 'border-yellow-500 bg-yellow-500/10 text-yellow-500'
-                      : 'border-zinc-800 bg-zinc-950/50 text-zinc-400 hover:border-zinc-700'
-                      }`}
-                  >
-                    <div className="font-bold text-sm">Admin Access</div>
-                    <div className="font-mono text-[10px] opacity-50 mt-1">Fu7Qnu...YdUD</div>
-                  </button>
-
-                  {/* Agent Wallet Option */}
-                  <button
-                    onClick={() => handleConnectWallet('Hz6MqkncNL5UbPA4raYCoYpFac3ssa9Mjk5e8n9kDvCd')}
-                    disabled={loading}
-                    className={`p-4 rounded-xl border transition-all text-left ${walletAddress === 'Hz6MqkncNL5UbPA4raYCoYpFac3ssa9Mjk5e8n9kDvCd'
-                      ? 'border-yellow-500 bg-yellow-500/10 text-yellow-500'
-                      : 'border-zinc-800 bg-zinc-950/50 text-zinc-400 hover:border-zinc-700'
-                      }`}
-                  >
-                    <div className="font-bold text-sm">Agent Miko (Genesis)</div>
-                    <div className="font-mono text-[10px] opacity-50 mt-1">Hz6Mqk...DvCd</div>
-                  </button>
-                </div>
               </div>
 
               <div className="mt-8 space-y-2">

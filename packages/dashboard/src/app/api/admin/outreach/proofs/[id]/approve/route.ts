@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { authenticateAPI } from '@/lib/middleware';
+import { requireAdmin } from '@/lib/adminAuth';
 
 let supabase: SupabaseClient | null = null;
 function getSupabase(): SupabaseClient {
@@ -20,19 +20,9 @@ export async function POST(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    // Authenticate as admin
-    const auth = await authenticateAPI(request, true);
-    if (!auth.authenticated || !auth.agentId) {
-      return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
-      );
-    }
-
-    // For MVP: Assume any authenticated user can approve
-    // In production: Check admin role
-    // const { data: admin } = await db.from('admins').select('id').eq('agent_id', auth.agentId).single();
-    // if (!admin) return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+    // Authenticate as admin (signature-backed JWT + ADMIN_WALLETS env allowlist)
+    const auth = await requireAdmin(request);
+    if (!auth.authorized) return auth.response;
 
     const { id: proofId } = await context.params;
     if (!proofId) {
@@ -77,7 +67,7 @@ export async function POST(
       .from('outreach_proofs')
       .update({
         manual_verified: true,
-        manual_verified_by: auth.agentId,
+        manual_verified_by: auth.agentId || auth.wallet,
         verified_at: new Date().toISOString(),
         notes: adminNotes || null
       })
@@ -94,7 +84,7 @@ export async function POST(
         status: 'verified',
         usd_released: missionReward,
         verified_at: new Date().toISOString(),
-        verified_by: auth.agentId
+        verified_by: auth.agentId || auth.wallet
       })
       .eq('id', claim.id);
 

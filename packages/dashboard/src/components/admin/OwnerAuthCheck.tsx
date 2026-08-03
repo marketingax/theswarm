@@ -7,8 +7,6 @@ interface OwnerAuthCheckProps {
 }
 
 export default function OwnerAuthCheck({ onConnect, walletAddress }: OwnerAuthCheckProps) {
-  const ownerWallet = 'Hz6MqkncNL5UbPA4raYCoYpFac3ssa9Mjk5e8n9kDvCd';
-
   return (
     <main className="min-h-screen bg-gradient-to-br from-black via-purple-950/20 to-black text-white flex items-center justify-center px-4">
       <div className="max-w-md w-full">
@@ -31,7 +29,7 @@ export default function OwnerAuthCheck({ onConnect, walletAddress }: OwnerAuthCh
                 <div className="text-left">
                   <p className="font-semibold text-red-400 mb-1">Access Denied</p>
                   <p className="text-sm text-red-300">
-                    This wallet is not authorized. Expected owner wallet: {ownerWallet.slice(0, 8)}...
+                    This wallet is not on the admin allowlist.
                   </p>
                   <p className="text-sm text-gray-400 mt-2">
                     Your wallet: {walletAddress.slice(0, 8)}...{walletAddress.slice(-6)}
@@ -56,7 +54,7 @@ export default function OwnerAuthCheck({ onConnect, walletAddress }: OwnerAuthCh
           </button>
 
           <p className="text-xs text-gray-500 mt-6">
-            Owner Address: {ownerWallet}
+            Admin access is granted server-side via the ADMIN_WALLETS allowlist.
           </p>
         </motion.div>
       </div>
