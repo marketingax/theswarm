@@ -6,9 +6,19 @@ import { createClient } from '@supabase/supabase-js';
 import nacl from 'tweetnacl';
 import bs58 from 'bs58';
 
-// JWT secret (should be in environment variables)
-const JWT_SECRET = process.env.JWT_SECRET || 'the-swarm-development-secret-change-in-production';
 const JWT_EXPIRY = '7d'; // 7 days
+
+// JWT_SECRET must be set — there is deliberately no fallback. A default secret
+// would let anyone forge session tokens for any agent.
+function getJWTSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error(
+      'JWT_SECRET environment variable is not set. Refusing to sign or verify tokens without it.'
+    );
+  }
+  return secret;
+}
 
 export interface JwtPayload {
   sub: string; // Agent ID
@@ -28,13 +38,13 @@ export function generateJWT(agentId: string, wallet: string, name: string, role:
     role
   };
   
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRY });
+  return jwt.sign(payload, getJWTSecret(), { expiresIn: JWT_EXPIRY });
 }
 
 // Verify JWT token
 export function verifyJWT(token: string): { valid: boolean; payload?: JwtPayload; error?: string } {
   try {
-    const payload = jwt.verify(token, JWT_SECRET) as JwtPayload;
+    const payload = jwt.verify(token, getJWTSecret()) as JwtPayload;
     return { valid: true, payload };
   } catch (error: any) {
     return { 

@@ -1,5 +1,7 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import nacl from 'tweetnacl';
+import bs58 from 'bs58';
 import { generateCSRFToken } from '@/lib/middleware';
 
 // Lazy initialization to avoid build-time errors
@@ -25,6 +27,25 @@ function generateReferralCode(name: string): string {
   return `${cleanName}-${random}`;
 }
 
+// Ed25519 signatures are 64 bytes. The join page sends base64 (Phantom output),
+// CLI clients send bs58 — accept either encoding.
+function decodeSignatureCandidates(signature: string): Uint8Array[] {
+  const candidates: Uint8Array[] = [];
+  try {
+    const b = bs58.decode(signature);
+    if (b.length === 64) candidates.push(b);
+  } catch {
+    // not bs58
+  }
+  try {
+    const b = new Uint8Array(Buffer.from(signature, 'base64'));
+    if (b.length === 64) candidates.push(b);
+  } catch {
+    // not base64
+  }
+  return candidates;
+}
+
 // Import JWT utilities
 import { generateJWT } from '@/lib/auth';
 
@@ -33,21 +54,85 @@ export async function POST(request: NextRequest) {
     const db = getSupabase();
     const body = await request.json();
     
-    const { 
-      name, 
-      tagline, 
-      description, 
-      wallet_address, 
+    const {
+      name,
+      tagline,
+      description,
+      wallet_address,
       youtube_channel,
       referral_code,
-      framework 
+      framework
     } = body;
+
+    // Accept both the join-page field names and the /api/auth/cli-style names
+    const walletSignature = body.wallet_signature || body.signature;
+    const signedMessage = body.signed_message || body.message;
 
     // Validate required fields
     if (!name || !wallet_address) {
       return NextResponse.json(
         { success: false, error: 'Name and wallet address are required' },
         { status: 400 }
+      );
+    }
+
+    // Proof of wallet ownership is required — otherwise anyone could register
+    // (and later receive payouts for) a wallet they don't control.
+    if (!walletSignature || !signedMessage) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            'A wallet signature is required. Sign a message containing "Wallet: <your address>" and "Timestamp: <ms since epoch>", then send it as signed_message with the signature as wallet_signature. Alternatively use GET/POST /api/auth/cli.',
+        },
+        { status: 400 }
+      );
+    }
+
+    // Verify the Ed25519 signature against the claimed wallet address
+    let signatureValid = false;
+    try {
+      const messageBytes = new TextEncoder().encode(signedMessage);
+      const publicKeyBytes = bs58.decode(wallet_address);
+      signatureValid = decodeSignatureCandidates(walletSignature).some(sig =>
+        nacl.sign.detached.verify(messageBytes, sig, publicKeyBytes)
+      );
+    } catch (verifyError) {
+      console.error('Signature verification error:', verifyError);
+      return NextResponse.json(
+        { success: false, error: 'Invalid signature or wallet address format' },
+        { status: 400 }
+      );
+    }
+
+    if (!signatureValid) {
+      return NextResponse.json(
+        { success: false, error: 'Signature verification failed' },
+        { status: 401 }
+      );
+    }
+
+    // The signed message must commit to the wallet being registered
+    if (!signedMessage.includes(`Wallet: ${wallet_address}`)) {
+      return NextResponse.json(
+        { success: false, error: 'Signed message does not reference this wallet address' },
+        { status: 401 }
+      );
+    }
+
+    // Freshness check (must be signed within the last 5 minutes)
+    const timestampMatch = signedMessage.match(/Timestamp: (\d+)/);
+    if (!timestampMatch) {
+      return NextResponse.json(
+        { success: false, error: 'Signed message must include "Timestamp: <ms since epoch>"' },
+        { status: 401 }
+      );
+    }
+    const msgTimestamp = parseInt(timestampMatch[1], 10);
+    if (Math.abs(Date.now() - msgTimestamp) > 5 * 60 * 1000) {
+      return NextResponse.json(
+        { success: false, error: 'Signature expired. Sign a fresh message and try again.' },
+        { status: 401 }
       );
     }
 

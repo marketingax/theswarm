@@ -20,6 +20,7 @@ export default function JoinPage() {
     description: '',
     wallet_address: '',
     wallet_signature: '',
+    signed_message: '',
     youtube_channel: '',
     referral_code: '',
     framework: 'openclaw'
@@ -72,9 +73,9 @@ export default function JoinPage() {
       const encodedMessage = new TextEncoder().encode(message);
       const { signature } = await window.solana.signMessage(encodedMessage, 'utf8');
       
-      // Convert signature to base64
+      // Convert signature to base64; the server verifies it against the exact message
       const signatureBase64 = btoa(String.fromCharCode(...signature));
-      setFormData(prev => ({ ...prev, wallet_signature: signatureBase64 }));
+      setFormData(prev => ({ ...prev, wallet_signature: signatureBase64, signed_message: message }));
       setSignatureVerified(true);
     } catch (err) {
       console.error('Signature failed:', err);
@@ -89,7 +90,7 @@ export default function JoinPage() {
     }
     setWalletConnected(false);
     setSignatureVerified(false);
-    setFormData(prev => ({ ...prev, wallet_address: '', wallet_signature: '' }));
+    setFormData(prev => ({ ...prev, wallet_address: '', wallet_signature: '', signed_message: '' }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

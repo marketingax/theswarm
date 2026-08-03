@@ -1,5 +1,6 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth';
 
 let supabase: SupabaseClient | null = null;
 
@@ -19,14 +20,35 @@ function getSupabase(): SupabaseClient {
 
 export async function GET(request: NextRequest) {
   try {
+    const auth = await requireAuth(request);
+    if (!auth.authenticated || !auth.agentId) {
+      return NextResponse.json(
+        { success: false, error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
     const db = getSupabase();
 
-    // For now, we'll return an empty array since we don't have a trust_history table yet
-    // In production, you'd query from a trust_history or audit_log table
-    const { data: history, error } = await db
+    const { data: actor } = await db
       .from('agents')
-      .select('id, name, trust_tier, updated_at')
-      .order('updated_at', { ascending: false })
+      .select('is_admin')
+      .eq('id', auth.agentId)
+      .single();
+
+    if (actor?.is_admin !== true) {
+      return NextResponse.json(
+        { success: false, error: 'Admin access required' },
+        { status: 403 }
+      );
+    }
+
+    const { data: history, error } = await db
+      .from('trust_history')
+      .select(
+        'id, agent_id, old_tier, new_tier, reason, created_at, changed_by, agent:agents!trust_history_agent_id_fkey(name)'
+      )
+      .order('created_at', { ascending: false })
       .limit(50);
 
     if (error) {
@@ -36,16 +58,15 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Transform to history format
-    const transformedHistory = (history || []).map(agent => ({
-      id: agent.id,
-      agent_id: agent.id,
-      agent_name: agent.name,
-      previous_tier: agent.trust_tier,
-      new_tier: agent.trust_tier,
-      reason: 'Initial state',
-      created_at: agent.updated_at,
-      changed_by: 'system',
+    const transformedHistory = (history || []).map((entry: any) => ({
+      id: entry.id,
+      agent_id: entry.agent_id,
+      agent_name: entry.agent?.name || entry.agent_id,
+      previous_tier: entry.old_tier,
+      new_tier: entry.new_tier,
+      reason: entry.reason,
+      created_at: entry.created_at,
+      changed_by: entry.changed_by,
     }));
 
     return NextResponse.json({
